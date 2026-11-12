@@ -3,6 +3,7 @@ package com.droid.googlebooktoolbox.apprestorer.ui
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -159,22 +160,51 @@ fun MainScreen(
 
 @Composable
 private fun Header(state: MainUiState) {
-  Row(verticalAlignment = Alignment.CenterVertically) {
-    Column(Modifier.weight(1f)) {
-      Text("Googlebook App Restorer", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-      Text("Restores windows, desks, displays & Chrome tabs after reboot", style = MaterialTheme.typography.bodySmall)
+  val (text, color) = when {
+    state.isArmed && state.frozen != null -> "Frozen · ${state.frozen.name.lowercase().replace('_', ' ')}" to Color(0xFFE37400)
+    state.isArmed -> "Keeping track of open apps and windows to restore on reboot" to Color(0xFF188038)
+    else -> "Setup required" to Color(0xFFD93025)
+  }
+
+  BoxWithConstraints(Modifier.fillMaxWidth()) {
+    val stackVertically = maxWidth < 760.dp
+    if (stackVertically) {
+      Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Column {
+          Text("Googlebook App Restorer", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+          Text("Restores windows, desks, displays & Chrome tabs after reboot", style = MaterialTheme.typography.bodySmall)
+        }
+        Text(
+          text,
+          color = Color.White,
+          style = MaterialTheme.typography.labelLarge,
+          modifier = Modifier
+            .background(color, RoundedCornerShape(20.dp))
+            .padding(horizontal = 12.dp, vertical = 6.dp)
+            .testTag("status_pill"),
+        )
+      }
+    } else {
+      Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+      ) {
+        Column(Modifier.weight(1f)) {
+          Text("Googlebook App Restorer", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+          Text("Restores windows, desks, displays & Chrome tabs after reboot", style = MaterialTheme.typography.bodySmall)
+        }
+        Text(
+          text,
+          color = Color.White,
+          style = MaterialTheme.typography.labelLarge,
+          modifier = Modifier
+            .background(color, RoundedCornerShape(20.dp))
+            .padding(horizontal = 12.dp, vertical = 6.dp)
+            .testTag("status_pill"),
+        )
+      }
     }
-    val (text, color) = when {
-      state.isArmed && state.frozen != null -> "Frozen · ${state.frozen.name.lowercase().replace('_', ' ')}" to Color(0xFFE37400)
-      state.isArmed -> "Armed & Capturing Before Reboot" to Color(0xFF188038)
-      else -> "Setup required" to Color(0xFFD93025)
-    }
-    Text(
-      text,
-      color = Color.White,
-      style = MaterialTheme.typography.labelLarge,
-      modifier = Modifier.background(color, RoundedCornerShape(50)).padding(horizontal = 12.dp, vertical = 6.dp).testTag("status_pill"),
-    )
   }
 }
 

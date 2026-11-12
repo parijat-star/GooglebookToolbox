@@ -325,10 +325,11 @@ class WorkspaceRestorerAndUiTest {
   }
 
   @Test
-  fun mainScreen_pillReadsArmedWhenReady() {
+  fun mainScreen_pillReadsTrackingMessageWhenReady() {
     val all = PermissionState(RequiredPermission.entries.associateWith { true })
     compose.setContent { MainScreen(MainUiState(all, serviceConnected = true, live = snapshot), {}, {}, {}, {}) }
-    compose.onNodeWithText("Armed & Capturing Before Reboot").assertExists()
+    compose.onNodeWithText("Keeping track of open apps and windows to restore on reboot").assertExists()
+    compose.onNodeWithText("Armed", substring = true, ignoreCase = true).assertDoesNotExist()
     compose.onNodeWithTag("live_summary").assertExists()
     compose.onNodeWithTag("desktop_preview").assertExists()
   }
