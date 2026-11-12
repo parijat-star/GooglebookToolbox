@@ -1,7 +1,11 @@
 package com.droid.googlebooktoolbox.ui
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.hoverable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -15,6 +19,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
@@ -22,7 +27,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsTopHeight
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -38,15 +42,25 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
@@ -61,6 +75,7 @@ import com.droid.googlebooktoolbox.featurechecker.ui.FeatureCheckerScreen
 import com.droid.googlebooktoolbox.featurechecker.ui.theme.LocalStudioColors
 import com.droid.googlebooktoolbox.model.ToolboxDestination
 import com.droid.googlebooktoolbox.model.ToolboxUiState
+import kotlin.math.roundToInt
 
 @Composable
 fun GooglebookToolboxApp(
@@ -92,12 +107,21 @@ fun GooglebookToolboxApp(
   modifier: Modifier = Modifier
 ) {
   val studio = LocalStudioColors.current
-  val metCount = featureCheckerState.dependencies.count { it.isMet }
-  val totalDeps = featureCheckerState.dependencies.size
-  val restorerStatus = when {
-    appRestorerState.isArmed -> "Armed & capturing before reboot"
-    else -> "${appRestorerState.permissions.grantedCount}/${RequiredPermission.entries.size} setup steps complete"
+  val density = LocalDensity.current
+
+  val featureCheckerHoverSource = remember { MutableInteractionSource() }
+  val appRestorerHoverSource = remember { MutableInteractionSource() }
+  val isFeatureCheckerHovered by featureCheckerHoverSource.collectIsHoveredAsState()
+  val isAppRestorerHovered by appRestorerHoverSource.collectIsHoveredAsState()
+
+  val hoveredDestination = when {
+    isFeatureCheckerHovered -> ToolboxDestination.COMPANION_CONNECTIVITY
+    isAppRestorerHovered -> ToolboxDestination.DESKTOP_RESTORER
+    else -> null
   }
+
+  var containerOriginInRoot by remember { mutableStateOf(Offset.Zero) }
+  val itemBoundsInRoot = remember { mutableStateMapOf<ToolboxDestination, Rect>() }
 
   if (toolboxState.showWelcomePopup) {
     ToolboxWelcomeDialog(onDismiss = onDismissWelcomePopup)
@@ -109,12 +133,12 @@ fun GooglebookToolboxApp(
   ) {
     Column(Modifier.fillMaxSize()) {
       // Top window caption / status bar inset strip across the unified Toolbox window
-      val captionTop = WindowInsets.captionBar.getTop(LocalDensity.current)
+      val captionTop = WindowInsets.captionBar.getTop(density)
       if (captionTop > 0) {
         Box(
           Modifier
             .fillMaxWidth()
-            .height(with(LocalDensity.current) { captionTop.toDp() })
+            .height(with(density) { captionTop.toDp() })
             .background(studio.chrome)
         )
       }
@@ -122,7 +146,13 @@ fun GooglebookToolboxApp(
         Spacer(Modifier.windowInsetsTopHeight(WindowInsets.statusBars))
       }
 
-      BoxWithConstraints(Modifier.fillMaxSize()) {
+      BoxWithConstraints(
+        modifier = Modifier
+          .fillMaxSize()
+          .onGloballyPositioned { coords ->
+            containerOriginInRoot = coords.boundsInRoot().topLeft
+          }
+      ) {
         val useSideBySidePanes = maxWidth >= 600.dp
 
         if (useSideBySidePanes) {
@@ -130,10 +160,9 @@ fun GooglebookToolboxApp(
             // Left Navigation Pane
             ToolboxLeftPane(
               selectedDestination = toolboxState.selectedDestination,
-              featureCheckerStatus = "$metCount of $totalDeps Googlebook checks met",
-              appRestorerStatus = restorerStatus,
-              appRestorerArmed = appRestorerState.isArmed,
-              featureCheckerAllMet = metCount == totalDeps && totalDeps > 0,
+              featureCheckerHoverSource = featureCheckerHoverSource,
+              appRestorerHoverSource = appRestorerHoverSource,
+              onItemPositioned = { dest, rect -> itemBoundsInRoot[dest] = rect },
               onSelectDestination = onSelectDestination,
               onOpenWelcomePopup = onOpenWelcomePopup,
               compact = false,
@@ -189,10 +218,9 @@ fun GooglebookToolboxApp(
           Column(Modifier.fillMaxSize()) {
             ToolboxLeftPane(
               selectedDestination = toolboxState.selectedDestination,
-              featureCheckerStatus = "$metCount/$totalDeps met",
-              appRestorerStatus = restorerStatus,
-              appRestorerArmed = appRestorerState.isArmed,
-              featureCheckerAllMet = metCount == totalDeps && totalDeps > 0,
+              featureCheckerHoverSource = featureCheckerHoverSource,
+              appRestorerHoverSource = appRestorerHoverSource,
+              onItemPositioned = { dest, rect -> itemBoundsInRoot[dest] = rect },
               onSelectDestination = onSelectDestination,
               onOpenWelcomePopup = onOpenWelcomePopup,
               compact = true,
@@ -236,6 +264,34 @@ fun GooglebookToolboxApp(
             }
           }
         }
+
+        // Non-interactive cursor hover pop-up anchored directly below the hovered left-pane option
+        hoveredDestination?.let { dest ->
+          val anchorRect = itemBoundsInRoot[dest]
+          val offsetX = if (anchorRect != null) {
+            (anchorRect.left - containerOriginInRoot.x + with(density) { 6.dp.toPx() })
+              .roundToInt()
+              .coerceAtLeast(with(density) { 12.dp.toPx() }.roundToInt())
+          } else {
+            with(density) { 24.dp.toPx() }.roundToInt()
+          }
+          val offsetY = if (anchorRect != null) {
+            (anchorRect.bottom - containerOriginInRoot.y + with(density) { 8.dp.toPx() }).roundToInt()
+          } else {
+            with(density) { 140.dp.toPx() }.roundToInt()
+          }
+          val popupTag = when (dest) {
+            ToolboxDestination.COMPANION_CONNECTIVITY -> "hover_popup_feature_checker"
+            ToolboxDestination.DESKTOP_RESTORER -> "hover_popup_app_restorer"
+          }
+
+          ToolboxHoverPopup(
+            description = dest.description,
+            modifier = Modifier
+              .offset { IntOffset(offsetX, offsetY) }
+              .testTag(popupTag)
+          )
+        }
       }
     }
   }
@@ -244,10 +300,9 @@ fun GooglebookToolboxApp(
 @Composable
 private fun ToolboxLeftPane(
   selectedDestination: ToolboxDestination,
-  featureCheckerStatus: String,
-  appRestorerStatus: String,
-  appRestorerArmed: Boolean,
-  featureCheckerAllMet: Boolean,
+  featureCheckerHoverSource: MutableInteractionSource,
+  appRestorerHoverSource: MutableInteractionSource,
+  onItemPositioned: (ToolboxDestination, Rect) -> Unit,
   onSelectDestination: (ToolboxDestination) -> Unit,
   onOpenWelcomePopup: () -> Unit,
   compact: Boolean,
@@ -268,24 +323,15 @@ private fun ToolboxLeftPane(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp)
       ) {
-        GooglebookToolboxLogo(size = if (compact) 40.dp else 50.dp)
-        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-          Text(
-            text = "Googlebook Toolbox",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurface,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-          )
-          Text(
-            text = "Utilities to manage your Googlebook",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-          )
-        }
+        GooglebookToolboxLogo(size = if (compact) 40.dp else 48.dp)
+        Text(
+          text = "Googlebook Toolbox",
+          style = MaterialTheme.typography.titleMedium,
+          fontWeight = FontWeight.SemiBold,
+          color = MaterialTheme.colorScheme.onSurface,
+          maxLines = 1,
+          overflow = TextOverflow.Ellipsis
+        )
       }
 
       IconButton(
@@ -302,38 +348,25 @@ private fun ToolboxLeftPane(
       }
     }
 
-    if (!compact) {
-      Text(
-        text = "TOOLS",
-        style = MaterialTheme.typography.labelMedium,
-        color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(horizontal = 6.dp)
-      )
-    }
-
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
       ToolboxNavigationOptionCard(
         title = ToolboxDestination.COMPANION_CONNECTIVITY.navTitle,
-        description = ToolboxDestination.COMPANION_CONNECTIVITY.description,
-        descriptionTag = "nav_desc_feature_checker",
-        statusText = featureCheckerStatus,
         icon = Icons.Default.Phonelink,
         selected = selectedDestination == ToolboxDestination.COMPANION_CONNECTIVITY,
-        statusPositive = featureCheckerAllMet,
         compact = compact,
+        hoverInteractionSource = featureCheckerHoverSource,
+        onPositioned = { rect -> onItemPositioned(ToolboxDestination.COMPANION_CONNECTIVITY, rect) },
         onClick = { onSelectDestination(ToolboxDestination.COMPANION_CONNECTIVITY) },
         modifier = Modifier.testTag("nav_item_feature_checker")
       )
 
       ToolboxNavigationOptionCard(
         title = ToolboxDestination.DESKTOP_RESTORER.navTitle,
-        description = ToolboxDestination.DESKTOP_RESTORER.description,
-        descriptionTag = "nav_desc_app_restorer",
-        statusText = appRestorerStatus,
         icon = Icons.Default.Restore,
         selected = selectedDestination == ToolboxDestination.DESKTOP_RESTORER,
-        statusPositive = appRestorerArmed,
         compact = compact,
+        hoverInteractionSource = appRestorerHoverSource,
+        onPositioned = { rect -> onItemPositioned(ToolboxDestination.DESKTOP_RESTORER, rect) },
         onClick = { onSelectDestination(ToolboxDestination.DESKTOP_RESTORER) },
         modifier = Modifier.testTag("nav_item_app_restorer")
       )
@@ -344,13 +377,11 @@ private fun ToolboxLeftPane(
 @Composable
 private fun ToolboxNavigationOptionCard(
   title: String,
-  description: String,
-  descriptionTag: String,
-  statusText: String,
   icon: ImageVector,
   selected: Boolean,
-  statusPositive: Boolean,
   compact: Boolean,
+  hoverInteractionSource: MutableInteractionSource,
+  onPositioned: (Rect) -> Unit,
   onClick: () -> Unit,
   modifier: Modifier = Modifier
 ) {
@@ -365,40 +396,26 @@ private fun ToolboxNavigationOptionCard(
   } else {
     MaterialTheme.colorScheme.onSurface
   }
-  val descColor = if (selected) {
-    MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.90f)
-  } else {
-    MaterialTheme.colorScheme.onSurfaceVariant
-  }
-  val statusColor = if (selected) {
-    MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.80f)
-  } else {
-    MaterialTheme.colorScheme.onSurfaceVariant
-  }
   val iconTint = if (selected) {
     MaterialTheme.colorScheme.onPrimary
   } else {
     MaterialTheme.colorScheme.primary
   }
-  val dotColor = when {
-    selected -> MaterialTheme.colorScheme.onPrimary
-    statusPositive -> studio.metGreen
-    else -> MaterialTheme.colorScheme.tertiary
-  }
 
   Row(
     modifier = modifier
       .fillMaxWidth()
+      .onGloballyPositioned { coords -> onPositioned(coords.boundsInRoot()) }
       .clip(RoundedCornerShape(20.dp))
       .background(containerColor)
+      .hoverable(interactionSource = hoverInteractionSource)
       .clickable(onClick = onClick)
-      .padding(horizontal = if (compact) 14.dp else 16.dp, vertical = if (compact) 11.dp else 15.dp),
-    verticalAlignment = Alignment.Top,
+      .padding(horizontal = if (compact) 14.dp else 16.dp, vertical = if (compact) 11.dp else 14.dp),
+    verticalAlignment = Alignment.CenterVertically,
     horizontalArrangement = Arrangement.spacedBy(12.dp)
   ) {
     Box(
       modifier = Modifier
-        .padding(top = 2.dp)
         .size(if (compact) 34.dp else 38.dp)
         .clip(RoundedCornerShape(12.dp))
         .background(
@@ -415,45 +432,36 @@ private fun ToolboxNavigationOptionCard(
       )
     }
 
-    Column(
-      modifier = Modifier.weight(1f),
-      verticalArrangement = Arrangement.spacedBy(5.dp)
-    ) {
-      Text(
-        text = title,
-        style = if (compact) MaterialTheme.typography.bodyMedium else MaterialTheme.typography.bodyLarge,
-        fontWeight = FontWeight.SemiBold,
-        color = titleColor
-      )
+    Text(
+      text = title,
+      style = if (compact) MaterialTheme.typography.bodyMedium else MaterialTheme.typography.bodyLarge,
+      fontWeight = FontWeight.SemiBold,
+      color = titleColor,
+      modifier = Modifier.weight(1f)
+    )
+  }
+}
 
-      Text(
-        text = description,
-        style = MaterialTheme.typography.bodySmall,
-        color = descColor,
-        maxLines = if (compact) 2 else 4,
-        overflow = TextOverflow.Ellipsis,
-        modifier = Modifier.testTag(descriptionTag)
-      )
-
-      Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(6.dp)
-      ) {
-        Box(
-          modifier = Modifier
-            .size(7.dp)
-            .clip(CircleShape)
-            .background(dotColor)
-        )
-        Text(
-          text = statusText,
-          style = MaterialTheme.typography.labelMedium,
-          color = statusColor,
-          maxLines = 1,
-          overflow = TextOverflow.Ellipsis
-        )
-      }
-    }
+@Composable
+private fun ToolboxHoverPopup(
+  description: String,
+  modifier: Modifier = Modifier
+) {
+  val studio = LocalStudioColors.current
+  Surface(
+    modifier = modifier.widthIn(max = 320.dp),
+    shape = RoundedCornerShape(14.dp),
+    color = studio.card,
+    tonalElevation = 4.dp,
+    shadowElevation = 8.dp,
+    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+  ) {
+    Text(
+      text = description,
+      style = MaterialTheme.typography.bodySmall,
+      color = MaterialTheme.colorScheme.onSurface,
+      modifier = Modifier.padding(horizontal = 14.dp, vertical = 11.dp)
+    )
   }
 }
 

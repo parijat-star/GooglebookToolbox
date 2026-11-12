@@ -3,11 +3,13 @@ package com.droid.googlebooktoolbox
 import android.content.Context
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performMouseInput
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.droid.googlebooktoolbox.apprestorer.permissions.PermissionState
@@ -164,15 +166,15 @@ class ToolboxScreenTest {
       }
     }
 
-    // Left pane displays logo + both requested navigation options + their descriptive lines underneath
+    // Left pane displays logo + ONLY the two clean option titles (no inline descriptions or status lines)
     composeTestRule.onNodeWithTag("toolbox_left_pane").assertIsDisplayed()
     composeTestRule.onNodeWithTag("toolbox_logo_canvas").assertIsDisplayed()
-    composeTestRule.onNodeWithText("Check your companion phone connectivity status").assertIsDisplayed()
-    composeTestRule.onNodeWithTag("nav_desc_feature_checker", useUnmergedTree = true).assertIsDisplayed()
-    composeTestRule.onNodeWithText("fixes missing dependencies on your Googlebook", substring = true, useUnmergedTree = true).assertIsDisplayed()
+    composeTestRule.onNodeWithText("Check your companion phone connection status").assertIsDisplayed()
     composeTestRule.onNodeWithText("Enable desktop restorer on reboot").assertIsDisplayed()
-    composeTestRule.onNodeWithTag("nav_desc_app_restorer", useUnmergedTree = true).assertIsDisplayed()
-    composeTestRule.onNodeWithText("captures and restores open desktop windows", substring = true, useUnmergedTree = true).assertIsDisplayed()
+    composeTestRule.onNodeWithText("fixes missing dependencies on your Googlebook", substring = true).assertDoesNotExist()
+    composeTestRule.onNodeWithText("captures and restores open desktop windows", substring = true).assertDoesNotExist()
+    composeTestRule.onNodeWithText("Googlebook checks met", substring = true).assertDoesNotExist()
+    composeTestRule.onNodeWithText("setup steps complete", substring = true).assertDoesNotExist()
 
     // Right pane initially displays Googlebook Feature Checker UI
     composeTestRule.onNodeWithTag("toolbox_right_pane").assertIsDisplayed()
@@ -185,7 +187,7 @@ class ToolboxScreenTest {
     composeTestRule.onNodeWithText("Restore automatically after reboot").assertIsDisplayed()
     composeTestRule.onNodeWithTag("capture_button").assertIsDisplayed()
 
-    // Click "Check your companion phone connectivity status" -> Right pane returns to Feature Checker UI
+    // Click "Check your companion phone connection status" -> Right pane returns to Feature Checker UI
     composeTestRule.onNodeWithTag("nav_item_feature_checker").performClick()
     composeTestRule.onNodeWithText("Googlebook Feature Checker").assertIsDisplayed()
     composeTestRule.assertEqualsDest(ToolboxDestination.COMPANION_CONNECTIVITY, toolboxVm.uiState.value.selectedDestination)
@@ -195,6 +197,79 @@ class ToolboxScreenTest {
     composeTestRule.onNodeWithTag("welcome_popup_dialog").assertIsDisplayed()
     composeTestRule.onNodeWithTag("welcome_popup_dismiss_button").performClick()
     composeTestRule.onNodeWithTag("welcome_popup_dialog").assertDoesNotExist()
+  }
+
+  @OptIn(ExperimentalTestApi::class)
+  @Test
+  fun leftPaneHover_showsAndHidesDescriptionPopupOnCursorHover() {
+    val prefs = InMemoryToolboxPrefs(hasSeenWelcomePopup = true)
+    val toolboxVm = ToolboxViewModel(prefs)
+    val fcVm = FeatureCheckerViewModel(FakeEnvironmentProvider())
+
+    composeTestRule.setContent {
+      val tbState by toolboxVm.uiState.collectAsState()
+      val fcState by fcVm.uiState.collectAsState()
+      GooglebookFeatureCheckerTheme(themeMode = fcState.themeMode) {
+        GooglebookToolboxApp(
+          toolboxState = tbState,
+          onSelectDestination = toolboxVm::selectDestination,
+          onDismissWelcomePopup = toolboxVm::dismissWelcomePopup,
+          onOpenWelcomePopup = toolboxVm::openWelcomePopup,
+          featureCheckerState = fcState,
+          onSelectFeature = fcVm::selectFeature,
+          onToggleCheckMark = fcVm::toggleDependencyCheckMark,
+          onFocusDependency = fcVm::setFocusedDependencyIndex,
+          onMoveFocusNext = fcVm::moveFocusNext,
+          onMoveFocusPrevious = fcVm::moveFocusPrevious,
+          onToggleFocusedDependency = fcVm::toggleFocusedDependency,
+          onExecuteAction = {},
+          onRefreshChecks = fcVm::refreshChecks,
+          onSetThemeMode = fcVm::setThemeMode,
+          onCycleThemeMode = fcVm::cycleThemeMode,
+          onSendFeedbackReport = {},
+          onOpenReferenceThread = {},
+          appRestorerState = MainUiState(permissions = PermissionState()),
+          onGrantRestorerPermission = {},
+          onOpenRestorerAppInfo = {},
+          onCaptureWorkspace = {},
+          onOpenRestorePrompt = {},
+          onDismissPendingRestore = {},
+          onExportDiagnostics = {},
+          onAutoRestoreChange = {}
+        )
+      }
+    }
+
+    // Initially no hover pop-ups are shown
+    composeTestRule.onNodeWithTag("hover_popup_feature_checker").assertDoesNotExist()
+    composeTestRule.onNodeWithTag("hover_popup_app_restorer").assertDoesNotExist()
+
+    // Hover cursor over "Check your companion phone connection status"
+    composeTestRule.onNodeWithTag("nav_item_feature_checker").performMouseInput {
+      enter(center)
+    }
+    composeTestRule.onNodeWithTag("hover_popup_feature_checker").assertIsDisplayed()
+    composeTestRule.onNodeWithText("fixes missing dependencies on your Googlebook", substring = true).assertIsDisplayed()
+    composeTestRule.onNodeWithTag("hover_popup_app_restorer").assertDoesNotExist()
+
+    // Move cursor off first item -> hover pop-up disappears
+    composeTestRule.onNodeWithTag("nav_item_feature_checker").performMouseInput {
+      exit()
+    }
+    composeTestRule.onNodeWithTag("hover_popup_feature_checker").assertDoesNotExist()
+
+    // Hover cursor over "Enable desktop restorer on reboot"
+    composeTestRule.onNodeWithTag("nav_item_app_restorer").performMouseInput {
+      enter(center)
+    }
+    composeTestRule.onNodeWithTag("hover_popup_app_restorer").assertIsDisplayed()
+    composeTestRule.onNodeWithText("captures and restores open desktop windows", substring = true).assertIsDisplayed()
+
+    // Move cursor off second item -> hover pop-up disappears
+    composeTestRule.onNodeWithTag("nav_item_app_restorer").performMouseInput {
+      exit()
+    }
+    composeTestRule.onNodeWithTag("hover_popup_app_restorer").assertDoesNotExist()
   }
 
   @Test

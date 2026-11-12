@@ -6,7 +6,7 @@ enum class ToolboxDestination(
   val toolName: String
 ) {
   COMPANION_CONNECTIVITY(
-    navTitle = "Check your companion phone connectivity status",
+    navTitle = "Check your companion phone connection status",
     description = "Checks Better Together cross-device requirements, fixes missing dependencies on your Googlebook, and shows what to verify on your phone.",
     toolName = "Googlebook Feature Checker"
   ),
