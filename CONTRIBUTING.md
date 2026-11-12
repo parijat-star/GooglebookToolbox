@@ -32,6 +32,14 @@ Thank you for contributing to **Googlebook Toolbox**! Please follow the guidelin
    ./gradlew assembleDebug assembleRelease
    ```
 
+## Adding a New Tool to Googlebook Toolbox
+
+Googlebook Toolbox is built to grow with new utilities that supercharge Googlebook usage:
+
+1. Create a self-contained subpackage under `com.droid.googlebooktoolbox.<toolname>/` with pure-Kotlin domain/state logic and an adaptive Compose screen (`embeddedInToolbox: Boolean = true`).
+2. Register a new entry in `ToolboxDestination` (`model/ToolboxModels.kt`) with a concise `navTitle` for the left pane and a clear `description` for its cursor hover pop-up.
+3. Wire the destination in `GooglebookToolboxApp.kt` (`ToolboxLeftPane` + `ToolboxRightPaneContent`) and add unit, Robolectric Compose UI, and fuzz tests under `app/src/test/`.
+
 ## Architecture & Security Guidelines
 
 - **Pure-Kotlin Testable Engines**: Keep core dependency-evaluation, Wi-Fi isolation analysis, window geometry classification, Virtual Desk inspection, and restore planning logic pure Kotlin behind lightweight interfaces (`DeviceEnvironmentProvider`, `ActionNavigator`, `UiNode`, `AppCatalog`, `LaunchCapabilities`, `RestoreDriver`) so all invariants run in milliseconds on the host JVM.

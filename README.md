@@ -5,18 +5,18 @@
 <h1 align="center">Googlebook Toolbox</h1>
 
 <p align="center">
-  <b>An all-in-one collection of desktop utilities and diagnostic tools built on and for Googlebooks.</b><br>
-  Combines <a href="https://github.com/parijat-star/GooglebookFeatureChecker"><b>Googlebook Feature Checker</b></a> and <a href="https://github.com/parijat-star/GooglebookAppRestorer"><b>Googlebook App Restorer</b></a> into a unified two-pane desktop studio — <b>100% offline, with zero root or ADB required</b>.
+  <b>A growing toolbox of useful tools and utilities to supercharge your Googlebook usage.</b><br>
+  One unified, extensible desktop app bringing together power-user workflows, cross-device diagnostics, and productivity utilities built specifically for Googlebooks — <b>100% offline, with zero root or ADB required</b>.
 </p>
 
 <p align="center">
   <a href="../../releases/latest/download/GooglebookToolbox-release.apk"><b>⬇ Download GooglebookToolbox-release.apk</b></a>
-  &nbsp;·&nbsp; <a href="#included-tools">Included Tools</a>
+  &nbsp;·&nbsp; <a href="#why-googlebook-toolbox">Why Googlebook Toolbox</a>
+  &nbsp;·&nbsp; <a href="#current-tools--roadmap">Tools &amp; Roadmap</a>
   &nbsp;·&nbsp; <a href="#quick-start">Quick Start</a>
   &nbsp;·&nbsp; <a href="#permissions--100-offline-privacy">Permissions &amp; Privacy</a>
-  &nbsp;·&nbsp; <a href="#architecture">Architecture</a>
+  &nbsp;·&nbsp; <a href="#extensible-architecture">Architecture</a>
   &nbsp;·&nbsp; <a href="#testing-fuzzing--security-verification">Testing &amp; Fuzzing</a>
-  &nbsp;·&nbsp; <a href="#made-on-a-googlebook">Made on a Googlebook</a>
   &nbsp;·&nbsp; <a href="#license">License</a>
 </p>
 
@@ -30,29 +30,35 @@
 </p>
 
 <p align="center">
-  <sub>A personal open-source passion project, proudly developed on and for a Googlebook in its Linux Terminal.<br>
+  <sub>An open-source passion project, proudly developed on and for a Googlebook in its Linux Terminal.<br>
   Not affiliated with or endorsed by Google or any employer (<a href="#about-this-project">more</a>).</sub>
 </p>
 
 ---
 
-## Interface Preview
+## Why Googlebook Toolbox?
+
+Instead of installing a dozen separate single-purpose helper apps, **Googlebook Toolbox** gives your Googlebook a single, cohesive home for practical utilities that solve everyday desktop pain points, unlock hidden capabilities, and streamline how you work.
+
+- **Built to Grow**: Designed around a modular two-pane studio shell (`ToolboxDestination` + self-contained Kotlin tool packages) so new Googlebook utilities can be added seamlessly over time.
+- **Clean, Distraction-Free Desktop UX**:
+  - **First-Open Welcome Pop-Up**: Introduces the app as your all-in-one Googlebook utility belt (accessible anytime via the `i` icon).
+  - **Streamlined Left-Pane Launcher + Cursor Hover Pop-Ups**: Keeps the sidebar crisp with concise tool titles and surfaces rich hover descriptions whenever you rest your cursor over an option.
+  - **Full-Width Utility Workspace**: Opens the active tool directly in the right pane, scaling smoothly from wide multi-monitor Googlebook setups (`>= 600dp`) down to compact viewports (`< 600dp`).
+- **Privacy-First by Design**: Operates **100% offline** (zero `INTERNET` permission) using only standard, user-grantable Android SDK APIs — never requiring root or ADB.
 
 <p align="center">
   <img src="docs/images/toolbox-frontpage-ui.svg" width="100%" alt="Googlebook Toolbox desktop UI showing the left navigation pane with cursor hover description pop-up and the right utility workspace" />
 </p>
 
-- **First-Open Welcome Dialog**: Introduces **Googlebook Toolbox** on first launch as a unified collection of utilities to manage and troubleshoot your Googlebook (and can be reopened anytime from the top-left `i` button).
-- **Clean Two-Pane Studio Layout**:
-  - **Left Pane**: Presents clean, distraction-free tool selectors — **Check your companion phone connection status** and **Enable desktop restorer on reboot** — with instant **cursor hover pop-ups** explaining what each utility does when you hover your trackpad or mouse over an item.
-  - **Right Pane**: Renders the full interactive utility for the selected tool, adapting seamlessly from wide desktop windows (`>= 600dp`) down to compact viewports (`< 600dp`).
-
 ---
 
-## Included Tools
+## Current Tools & Roadmap
 
-### 1. Check your companion phone connection status (*Googlebook Feature Checker*)
-Tracks Better Together cross-device prerequisites step by step, helps fix missing dependencies **on your Googlebook**, and shows what to verify on your companion Android phone:
+The two utilities shipping today are **just the beginning** — originally proven as standalone community tools ([Googlebook Feature Checker](https://github.com/parijat-star/GooglebookFeatureChecker) and [Googlebook App Restorer](https://github.com/parijat-star/GooglebookAppRestorer)) and now unified inside **Googlebook Toolbox** alongside an expanding roadmap of future Googlebook utilities.
+
+### Tool 1 · Check your companion phone connection status
+Tracks **Better Together** cross-device prerequisites step by step, fixes missing dependencies **on your Googlebook**, and clearly lists what to verify on your companion Android phone:
 
 | Step | Dependency | Googlebook Verification & Fixer | Companion Phone Check |
 | :--- | :--- | :--- | :--- |
@@ -68,40 +74,45 @@ Includes full keyboard shortcuts (`↑`/`↓`, `Space`/`Enter` click-marks, `R` 
 
 ---
 
-### 2. Enable desktop restorer on reboot (*Googlebook App Restorer*)
-Automatically keeps track of open apps and desktop windows so your workspace picks up right where you left off after every reboot — **without root or ADB**:
+### Tool 2 · Enable desktop restorer on reboot
+Keeps track of your open apps, desktop windows, Virtual Desks, displays, and Chrome tabs so your workspace picks up right where you left off after every reboot:
 
-- **Always-On Background Tracking**: Continues tracking open apps, windows, Virtual Desks, and Chrome tabs even after closing the Toolbox window (`"Keeping track of open apps and windows to restore on reboot"`), flushing atomically (`AtomicFile` + `fsync`) to Device-Protected Storage on Power Menu, screen-off, and shutdown.
+- **Always-On Background Tracking**: Continues tracking open apps and windows even when the Toolbox window is closed (`"Keeping track of open apps and windows to restore on reboot"`), flushing atomically (`AtomicFile` + `fsync`) to Device-Protected Storage on Power Menu, screen-off, and shutdown.
 - **Multi-Desk & Multi-Display Fidelity (Schema v6)**:
-  - Tracks windows across `Desk 1..N` and external monitors (`DisplayManager` + `WindowMetrics`).
-  - Recreates missing Virtual Desks in Overview on reboot, activates each desk in sequence, and scales window bounds proportionally if an external monitor was unplugged.
+  - Tracks windows across `Desk 1..N` and connected external monitors (`DisplayManager` + `WindowMetrics`).
+  - Automatically recreates missing Virtual Desks in Overview on reboot, activates each desk in sequence, and scales window bounds proportionally if an external monitor was unplugged.
 - **Exact Window Geometry, Z-Order & Minimized State**:
   - Restores exact pixel bounds and states (`FREEFORM`, `MAXIMIZED`, `FULLSCREEN`, `SNAPPED_LEFT`, `SNAPPED_RIGHT`, `MINIMIZED`) and Z-order stacking.
 - **TWAs, Multi-Instance Windows & Chrome Tabs**:
   - Distinguishes standalone TWAs / WebAPKs and Gemini from Chrome browser windows, preserves multiple Chrome and Files (`DocumentsUI`) windows, and reconciles open Chrome tab URLs with zero duplicates.
 - **Cancelable 6-Second Auto-Restore Pop-Up on Unlock**:
-  - Waits until `KeyguardManager` reports the desktop is unlocked after reboot, then presents a compact centered 6-second countdown (**Cancel** / `Esc`, **Restore now**, or **Choose…**).
+  - Waits until `KeyguardManager` confirms the desktop is unlocked after reboot, then presents a compact centered 6-second countdown (**Cancel** / `Esc`, **Restore now**, or **Choose…**).
+
+---
+
+### Upcoming & Future Toolbox Utilities
+**Googlebook Toolbox** is actively expanding! Future releases are planned to add more Googlebook-focused tools — such as additional feature readiness checkers, multi-monitor & peripheral helpers, keyboard/trackpad workflow enhancers, Linux Terminal developer utilities, and system health diagnostics. Have an idea for a tool that would supercharge your Googlebook? [Open a feature request](../../issues) or check [CONTRIBUTING.md](CONTRIBUTING.md) to add a new tool module!
 
 ---
 
 ## Quick Start
 
 1. **Install the APK**: Download [`GooglebookToolbox-release.apk`](../../releases/latest/download/GooglebookToolbox-release.apk) (or build from source below).
-2. **Explore Your Tools**:
-   - Use **Check your companion phone connection status** immediately to inspect and fix Better Together prerequisites on your Googlebook (grant optional Location permission only if you want the live Wi-Fi network SSID displayed in Step #4).
-   - Switch to **Enable desktop restorer on reboot** to grant the one-time setup permissions (*for sideloaded APKs on Android 13+, open **Settings → Apps → Googlebook Toolbox → ⋮ → Allow restricted settings** before enabling Accessibility*).
-3. **Close & Work Normally**: Once enabled, Desktop Restorer continues tracking in the background and automatically offers to restore your workspace after your next reboot.
+2. **Pick Any Tool in the Left Pane**:
+   - Hover over any tool in the left pane to preview what it does, or click to open its workspace on the right.
+   - Permissions are **only requested when needed by a specific tool** (for example, optional Wi-Fi SSID Location access for Step #4 in the Companion Phone Connection Checker, or the guided 4-step setup inside Desktop Restorer on Reboot).
+   - *Note for sideloaded APKs on Android 13+*: Before enabling Accessibility for Desktop Restorer, open **Settings → Apps → Googlebook Toolbox → ⋮ → Allow restricted settings** once.
 
 ---
 
 ## Permissions & 100% Offline Privacy
 
-**Googlebook Toolbox requests ZERO network permissions (`no android.permission.INTERNET`).** All diagnostics and workspace snapshots remain strictly on-device.
+**Googlebook Toolbox requests ZERO network permissions (`no android.permission.INTERNET`).** Every diagnostic check and workspace snapshot stays strictly on your Googlebook.
 
 | Permission | Used By | Purpose |
 | :--- | :--- | :--- |
 | `ACCESS_NETWORK_STATE` & `ACCESS_WIFI_STATE` | Companion Phone Connection Checker | Inspects local Wi-Fi transport, VPN state, and AP host-isolation telemetry offline. |
-| `ACCESS_FINE_LOCATION` *(optional runtime)* | Companion Phone Connection Checker | Required by Android 12+ solely to read the connected Wi-Fi SSID name in Step #4. |
+| `ACCESS_FINE_LOCATION` *(optional runtime)* | Companion Phone Connection Checker | Required by Android 12+ solely to display the connected Wi-Fi SSID name in Step #4. |
 | `BLUETOOTH` | Companion Phone Connection Checker | Checks whether the local Bluetooth adapter is turned on for proximity discovery. |
 | `BIND_ACCESSIBILITY_SERVICE` *(optional setup)* | Desktop Restorer on Reboot | Observes desktop window bounds, Virtual Desks in Overview, and Chrome's top-level tab strip/omnibox (skipping `WebView` page DOMs and password nodes), and recreates Virtual Desks on restore. |
 | `SYSTEM_ALERT_WINDOW` *(optional setup)* | Desktop Restorer on Reboot | Displays the post-reboot 6-second countdown card after unlock and permits multi-window desktop launches. |
@@ -110,35 +121,40 @@ Automatically keeps track of open apps and desktop windows so your workspace pic
 
 ---
 
-## Architecture
+## Extensible Architecture
+
+Each utility in **Googlebook Toolbox** lives in its own isolated Kotlin package and plugs into the shared two-pane Material 3 shell (`GooglebookToolboxApp` + `ToolboxDestination`), making it straightforward to ship new tools without coupling unrelated features:
 
 ```mermaid
 flowchart TB
   subgraph Shell["Unified Googlebook Toolbox Shell (ui/ & model/)"]
-    WELCOME["First-Open Welcome Dialog"]
-    LEFT["Left Pane Tool Selector + Cursor Hover Pop-Ups"]
-    RIGHT["Adaptive Right Utility Pane"]
+    WELCOME["First-Open Toolbox Welcome Pop-Up"]
+    LEFT["Left-Pane Tool Selector + Cursor Hover Pop-Ups"]
+    RIGHT["Adaptive Right Utility Workspace"]
     LEFT --> RIGHT
   end
 
   subgraph Tool1["Tool 1: Companion Phone Connection Checker (featurechecker/)"]
     ENV["SystemDeviceEnvironmentProvider"]
-    WIFI["WifiIsolationAnalyzer (9 Host-Isolation Heuristics)"]
-    SEC["SecurityGuard + VersionComparator"]
-    ACT["SystemActionLauncher (Settings & Play Store Deep Links)"]
-    ENV --> WIFI --> SEC --> ACT
+    WIFI["WifiIsolationAnalyzer + VersionComparator + SecurityGuard"]
+    ACT["SystemActionLauncher (Googlebook Fixer Deep Links)"]
+    ENV --> WIFI --> ACT
   end
 
   subgraph Tool2["Tool 2: Desktop Restorer on Reboot (apprestorer/)"]
     CAP["WorkspaceCaptureAccessibilityService + WorkspaceCaptureEngine"]
     REPO["WorkspaceRepository (Device-Protected AtomicFile)"]
-    BOOT["BootRestoreReceiver + BootCountdownOverlay"]
-    REST["RestorePlanner + TabReconciler + AccessibilityRestoreDriver"]
-    CAP --> REPO --> BOOT --> REST
+    REST["BootRestoreReceiver + RestorePlanner + AccessibilityRestoreDriver"]
+    CAP --> REPO --> REST
+  end
+
+  subgraph Future[" Tool 3..N: Future Googlebook Utilities"]
+    NEXT["Self-Contained Pure-Kotlin Engine + Compose Screen"]
   end
 
   RIGHT --> Tool1
   RIGHT --> Tool2
+  RIGHT -. "Plug-in Tool Modules" .-> Future
 ```
 
 ### Module Layout
@@ -178,19 +194,19 @@ flowchart TB
 - [`FeatureCheckerViewModelTest`](app/src/test/kotlin/com/droid/googlebooktoolbox/featurechecker/FeatureCheckerViewModelTest.kt), [`FeatureCheckerScreenTest`](app/src/test/kotlin/com/droid/googlebooktoolbox/featurechecker/FeatureCheckerScreenTest.kt) & [`FuzzAndSecurityTest`](app/src/test/kotlin/com/droid/googlebooktoolbox/featurechecker/FuzzAndSecurityTest.kt): All 7 Better Together dependency checks, Wi-Fi host-isolation heuristics, SSRF/URI/package injection blocks, bounded stream readers, and `1,500+` version/JSON fuzz iterations.
 - [`WorkspaceSnapshotAndGeometryTest`](app/src/test/kotlin/com/droid/googlebooktoolbox/apprestorer/WorkspaceSnapshotAndGeometryTest.kt), [`WorkspaceRestorerAndUiTest`](app/src/test/kotlin/com/droid/googlebooktoolbox/apprestorer/WorkspaceRestorerAndUiTest.kt), [`PlatformAndBootIntegrationTest`](app/src/test/kotlin/com/droid/googlebooktoolbox/apprestorer/PlatformAndBootIntegrationTest.kt) & [`WorkspaceFuzzAndPropertyTest`](app/src/test/kotlin/com/droid/googlebooktoolbox/apprestorer/WorkspaceFuzzAndPropertyTest.kt): Multi-desk/multi-display capture & restore ordering, Chrome tab deduplication, keyguard-gated boot countdown overlay, and `10,000+` deterministic fuzz iterations across codecs, `BootToken`, URL scheme normalization, deep UI trees, and state-machine invariants.
 
-See [SECURITY.md](SECURITY.md) for the full threat model and vulnerability disclosure policy, and [CONTRIBUTING.md](CONTRIBUTING.md) for contributor guidelines.
+See [SECURITY.md](SECURITY.md) for the full threat model and vulnerability disclosure policy, and [CONTRIBUTING.md](CONTRIBUTING.md) for contributor guidelines and how to add new tools.
 
 ---
 
 ## Made on a Googlebook
 
-Googlebook Toolbox was designed, built, fuzzed, and verified directly on a Googlebook inside its Linux Terminal environment — shipping as a single pure-JVM universal APK that runs natively on both `arm64-v8a` and `x86_64` Googlebooks.
+Googlebook Toolbox was designed, built, fuzzed, and verified directly on a Googlebook inside its Linux Terminal environment — shipping as a single pure-JVM universal APK (`2.3 MB` release) that runs natively on both `arm64-v8a` and `x86_64` Googlebooks.
 
 ---
 
 <h2 id="about-this-project">About this project</h2>
 
-Googlebook Toolbox is an independent, open-source project uniting [Googlebook Feature Checker](https://github.com/parijat-star/GooglebookFeatureChecker) and [Googlebook App Restorer](https://github.com/parijat-star/GooglebookAppRestorer) into one cohesive Googlebook utility suite. It is not affiliated with, endorsed by, or sponsored by Google or any employer.
+Googlebook Toolbox is an independent, open-source collection of utilities built to supercharge everyday Googlebook usage — starting with [Googlebook Feature Checker](https://github.com/parijat-star/GooglebookFeatureChecker) and [Googlebook App Restorer](https://github.com/parijat-star/GooglebookAppRestorer) and growing with new community-driven tools over time. It is not affiliated with, endorsed by, or sponsored by Google or any employer.
 
 ---
 
@@ -198,4 +214,4 @@ Googlebook Toolbox is an independent, open-source project uniting [Googlebook Fe
 
 Licensed under the [Apache License, Version 2.0](LICENSE).
 
-<p align="center"><sub>Crafted on a Googlebook, for the Googlebook community.</sub></p>
+<p align="center"><sub>Crafted on a Googlebook, to supercharge every Googlebook.</sub></p>
