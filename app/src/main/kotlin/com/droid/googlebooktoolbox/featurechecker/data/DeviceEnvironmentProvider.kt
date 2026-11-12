@@ -15,7 +15,6 @@ import com.droid.googlebooktoolbox.featurechecker.util.WifiIsolationAnalyzer
 import com.droid.googlebooktoolbox.featurechecker.util.WifiNetworkTelemetry
 import java.net.Inet4Address
 import java.net.InetSocketAddress
-import java.net.MulticastSocket
 import java.net.Socket
 
 data class DeviceSystemSnapshot(
@@ -303,13 +302,9 @@ class SystemDeviceEnvironmentProvider(
       }
     }
 
-    // Check if local LAN multicast socket creation works (AP / OS multicast isolation check)
-    val multicastOk = runCatching {
-      MulticastSocket().use { ms ->
-        ms.timeToLive = 1
-        true
-      }
-    }.getOrDefault(true)
+    // Operate strictly offline without opening any network/multicast sockets; AP isolation is evaluated
+    // via Enterprise 802.1X/Passpoint, Captive Portal, Open/OWE, subnet, and SSID telemetry above.
+    val multicastOk = true
 
     return WifiNetworkTelemetry(
       hasWifiTransport = hasWifi,

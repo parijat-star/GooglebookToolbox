@@ -5,12 +5,14 @@ import android.provider.Browser
 import android.provider.Settings
 import com.droid.googlebooktoolbox.apprestorer.capture.KnownPackages
 import com.droid.googlebooktoolbox.apprestorer.capture.WindowGeometryClassifier
+import com.droid.googlebooktoolbox.apprestorer.inspect.TwaAndBrowserInspector
 import com.droid.googlebooktoolbox.apprestorer.model.AppKind
 import com.droid.googlebooktoolbox.apprestorer.model.CapturedWindow
 import com.droid.googlebooktoolbox.apprestorer.model.DisplayGeometry
 import com.droid.googlebooktoolbox.apprestorer.model.WindowBounds
 import com.droid.googlebooktoolbox.apprestorer.model.WindowVisualState
 import com.droid.googlebooktoolbox.apprestorer.model.WorkspaceSnapshot
+import com.droid.googlebooktoolbox.featurechecker.util.SecurityGuard
 
 /** Platform-free description of the Intent used to relaunch a window. */
 data class LaunchDescriptor(
@@ -177,11 +179,13 @@ class RestorePlanner(private val caps: LaunchCapabilities) {
 
   /** Canonical, unprivileged launcher entry point for each window kind. */
   fun resolveLaunch(w: CapturedWindow, instanceIndex: Int): LaunchDescriptor? {
+    if (!SecurityGuard.isValidAndroidPackageName(w.packageName)) return null
     val secondary = instanceIndex > 0
     val baseFlags = Intent.FLAG_ACTIVITY_NEW_TASK
     val multiFlags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_MULTIPLE_TASK
     val identifier = "restore:${w.packageName}:$instanceIndex:${w.windowKey}"
     fun launcher(pkg: String, multi: Boolean): LaunchDescriptor? {
+      if (!SecurityGuard.isValidAndroidPackageName(pkg)) return null
       val comp = caps.launcherComponent(pkg) ?: return null
       return LaunchDescriptor(
         packageName = pkg, component = comp, action = Intent.ACTION_MAIN,
@@ -196,7 +200,9 @@ class RestorePlanner(private val caps: LaunchCapabilities) {
           // ACTION_MAIN without EXTRA_CREATE_NEW_TAB: TabPersistentStore restores tab_state0.
           launcher(w.packageName, multi = false)
         } else {
-          val url = w.tabUrls.getOrNull(w.activeTabIndex) ?: w.tabUrls.firstOrNull()
+          val rawUrl = w.tabUrls.getOrNull(w.activeTabIndex) ?: w.tabUrls.firstOrNull()
+          val url = rawUrl?.let(TwaAndBrowserInspector::normalizeUrl)
+            ?: w.tabUrls.firstNotNullOfOrNull(TwaAndBrowserInspector::normalizeUrl)
           if (caps.launcherComponent(w.packageName) == null) return null
           LaunchDescriptor(
             packageName = w.packageName, component = null,

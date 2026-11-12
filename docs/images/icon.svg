@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 108 108" width="216" height="216" role="img" aria-label="Googlebook Toolbox logo: Googlebook laptop with G and tools around it">
+  <!-- Rounded Studio Tile -->
+  <rect x="2" y="2" width="104" height="104" rx="26" fill="#EAF4F3"/>
+  <path d="M2 68 L106 38 L106 80 Q106 106 80 106 L28 106 Q2 106 2 80 Z" fill="#D9ECE9"/>
+
+  <!-- Top-Left Tool: Open-End Wrench -->
+  <g transform="rotate(-30 26 35)">
+    <rect x="23.5" y="31" width="5" height="16" rx="2.5" fill="#00696B"/>
+    <circle cx="26" cy="27" r="5.5" fill="#1E293B"/>
+    <rect x="24" y="20.5" width="4" height="6.8" fill="#EAF4F3"/>
+  </g>
+
+  <!-- Top-Right Tool: Precision Screwdriver -->
+  <g transform="rotate(30 82 35)">
+    <rect x="80.7" y="21" width="2.6" height="12" fill="#475569"/>
+    <rect x="79" y="33" width="6" height="2.5" fill="#FBBC05"/>
+    <rect x="79" y="35" width="6" height="12" rx="3" fill="#00696B"/>
+  </g>
+
+  <!-- Bottom-Left Tool: Tuning Gear -->
+  <g stroke="#334155" stroke-width="2.5" stroke-linecap="round">
+    <line x1="21.5" y1="51.5" x2="21.5" y2="64.5"/>
+    <line x1="15" y1="58" x2="28" y2="58"/>
+    <line x1="16.9" y1="53.4" x2="26.1" y2="62.6"/>
+    <line x1="26.1" y1="53.4" x2="16.9" y2="62.6"/>
+  </g>
+  <circle cx="21.5" cy="58" r="4.6" fill="#334155"/>
+  <circle cx="21.5" cy="58" r="2" fill="#D9ECE9"/>
+
+  <!-- Bottom-Right Tool: Diagnostic Check Badge -->
+  <circle cx="86.5" cy="58.5" r="6.2" fill="#00696B"/>
+  <path d="M83.6 58.6 L85.6 60.7 L89.5 56.4" fill="none" stroke="#FFFFFF" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Googlebook Laptop Lid & Screen -->
+  <rect x="25" y="31" width="58" height="39" rx="5" fill="#1E293B"/>
+  <rect x="28" y="34" width="52" height="33" rx="2.5" fill="#FFFFFF"/>
+  <circle cx="54" cy="32.5" r="0.9" fill="#64748B"/>
+
+  <!-- Multicolor Google 'G' Emblem on Screen -->
+  <path d="M62.4 50.5 A8.5 8.5 0 0 1 54 59" fill="none" stroke="#4285F4" stroke-width="3.3" stroke-linecap="butt"/>
+  <path d="M54 59 A8.5 8.5 0 0 1 46.6 54.7" fill="none" stroke="#34A853" stroke-width="3.3" stroke-linecap="butt"/>
+  <path d="M46.6 54.7 A8.5 8.5 0 0 1 46.6 46.3" fill="none" stroke="#FBBC05" stroke-width="3.3" stroke-linecap="butt"/>
+  <path d="M46.6 46.3 A8.5 8.5 0 0 1 59.8 44.3" fill="none" stroke="#EA4335" stroke-width="3.3" stroke-linecap="round"/>
+  <rect x="54" y="48.9" width="8.8" height="3.2" rx="1" fill="#4285F4"/>
+
+  <!-- Googlebook Laptop Base & Hinge Notch -->
+  <path d="M18 70 L90 70 Q91.5 76 85.5 76 L22.5 76 Q16.5 76 18 70 Z" fill="#334155"/>
+  <rect x="47" y="70" width="14" height="2.2" rx="1.1" fill="#94A3B8"/>
+</svg>

@@ -221,7 +221,13 @@ object TabReconciler {
       val t = savedTitles.getOrNull(i)?.trim()?.lowercase().orEmpty()
       return t.isNotEmpty() && t in restoredTitleSet
     }
-    val candidates = savedUrls.withIndex().filter { (i, u) -> !alreadyOpen(i, u) }.map { it.value }.distinct()
+    val candidates = savedUrls
+      .withIndex()
+      .mapNotNull { (i, rawUrl) ->
+        val safeUrl = TwaAndBrowserInspector.normalizeUrl(rawUrl) ?: return@mapNotNull null
+        if (alreadyOpen(i, safeUrl)) null else safeUrl
+      }
+      .distinct()
     if (!chromeRestoresNatively) return candidates
     // Chrome restored its own tab_state: only add what it is provably missing.
     if (restoredTitles.isEmpty()) {

@@ -172,7 +172,12 @@ class MainActivity : ComponentActivity() {
   override fun onNewIntent(intent: Intent) {
     super.onNewIntent(intent)
     setIntent(intent)
-    if (intent.hasExtra(EXTRA_INITIAL_TOOL)) {
+    val hasInitialTool = try {
+      intent.hasExtra(EXTRA_INITIAL_TOOL)
+    } catch (_: RuntimeException) {
+      false
+    }
+    if (hasInitialTool) {
       toolboxViewModelRef?.selectDestination(resolveDestinationFromIntent(intent))
     }
   }
@@ -217,7 +222,12 @@ class MainActivity : ComponentActivity() {
     const val TOOL_COMPANION_CONNECTIVITY = "COMPANION_CONNECTIVITY"
 
     fun resolveDestinationFromIntent(intent: Intent?): ToolboxDestination {
-      return when (intent?.getStringExtra(EXTRA_INITIAL_TOOL)) {
+      val toolExtra = try {
+        intent?.getStringExtra(EXTRA_INITIAL_TOOL)
+      } catch (_: RuntimeException) {
+        null
+      }
+      return when (toolExtra) {
         TOOL_DESKTOP_RESTORER -> ToolboxDestination.DESKTOP_RESTORER
         else -> ToolboxDestination.COMPANION_CONNECTIVITY
       }

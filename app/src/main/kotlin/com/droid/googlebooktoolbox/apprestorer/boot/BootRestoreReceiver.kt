@@ -25,18 +25,15 @@ import com.droid.googlebooktoolbox.apprestorer.ui.RestorePromptActivity
  */
 class BootRestoreReceiver : BroadcastReceiver() {
   override fun onReceive(context: Context, intent: Intent) {
+    val action = intent.action ?: return
     val repo = WorkspaceRepository(context)
-    when (intent.action) {
+    when (action) {
       Intent.ACTION_LOCKED_BOOT_COMPLETED -> repo.promoteIfNewBoot()
-      Intent.ACTION_BOOT_COMPLETED, ACTION_QUICKBOOT_POWERON, Intent.ACTION_MY_PACKAGE_REPLACED -> {
+      Intent.ACTION_BOOT_COMPLETED, Intent.ACTION_MY_PACKAGE_REPLACED -> {
         repo.promoteIfNewBoot()
         BootPromptLauncher.scheduleUnlockChecks(context)
       }
     }
-  }
-
-  companion object {
-    const val ACTION_QUICKBOOT_POWERON = "android.intent.action.QUICKBOOT_POWERON"
   }
 }
 

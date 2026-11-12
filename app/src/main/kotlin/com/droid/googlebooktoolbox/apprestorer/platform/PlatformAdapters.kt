@@ -89,7 +89,6 @@ object IntentFactory {
       intent.component = ComponentName.unflattenFromString(d.component)
     } else {
       intent.setPackage(d.packageName)
-      if (intent.resolveActivity(context.packageManager) == null) intent.setPackage(null)
     }
     d.categories.forEach { intent.addCategory(it) }
     d.dataUri?.let { intent.data = Uri.parse(it) }

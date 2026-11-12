@@ -106,9 +106,11 @@ object DiagnosticsExporter {
     val o = JSONObject()
     n.viewIdResourceName?.let { o.put("id", it.substringAfter(":id/")) }
     o.put("cls", n.className?.toString()?.substringAfterLast('.'))
-    if (!n.isPassword) {
-      n.text?.let { o.put("text", it.toString().take(120)) }
+    if (n.isPassword) {
+      o.put("passwordRedacted", true)
+      return o
     }
+    n.text?.let { o.put("text", it.toString().take(120)) }
     n.contentDescription?.let { o.put("desc", it.toString().take(120)) }
     o.put("b", "${r.left},${r.top},${r.right},${r.bottom}")
     if (n.isSelected) o.put("sel", true)
