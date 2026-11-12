@@ -45,6 +45,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
@@ -129,7 +130,7 @@ fun GooglebookToolboxApp(
             // Left Navigation Pane
             ToolboxLeftPane(
               selectedDestination = toolboxState.selectedDestination,
-              featureCheckerStatus = "$metCount of $totalDeps dependencies met",
+              featureCheckerStatus = "$metCount of $totalDeps Googlebook checks met",
               appRestorerStatus = restorerStatus,
               appRestorerArmed = appRestorerState.isArmed,
               featureCheckerAllMet = metCount == totalDeps && totalDeps > 0,
@@ -137,7 +138,7 @@ fun GooglebookToolboxApp(
               onOpenWelcomePopup = onOpenWelcomePopup,
               compact = false,
               modifier = Modifier
-                .width(312.dp)
+                .width(332.dp)
                 .fillMaxHeight()
                 .background(studio.chrome)
                 .verticalScroll(rememberScrollState())
@@ -310,10 +311,12 @@ private fun ToolboxLeftPane(
       )
     }
 
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
       ToolboxNavigationOptionCard(
         title = ToolboxDestination.COMPANION_CONNECTIVITY.navTitle,
-        subtitle = featureCheckerStatus,
+        description = ToolboxDestination.COMPANION_CONNECTIVITY.description,
+        descriptionTag = "nav_desc_feature_checker",
+        statusText = featureCheckerStatus,
         icon = Icons.Default.Phonelink,
         selected = selectedDestination == ToolboxDestination.COMPANION_CONNECTIVITY,
         statusPositive = featureCheckerAllMet,
@@ -324,7 +327,9 @@ private fun ToolboxLeftPane(
 
       ToolboxNavigationOptionCard(
         title = ToolboxDestination.DESKTOP_RESTORER.navTitle,
-        subtitle = appRestorerStatus,
+        description = ToolboxDestination.DESKTOP_RESTORER.description,
+        descriptionTag = "nav_desc_app_restorer",
+        statusText = appRestorerStatus,
         icon = Icons.Default.Restore,
         selected = selectedDestination == ToolboxDestination.DESKTOP_RESTORER,
         statusPositive = appRestorerArmed,
@@ -339,7 +344,9 @@ private fun ToolboxLeftPane(
 @Composable
 private fun ToolboxNavigationOptionCard(
   title: String,
-  subtitle: String,
+  description: String,
+  descriptionTag: String,
+  statusText: String,
   icon: ImageVector,
   selected: Boolean,
   statusPositive: Boolean,
@@ -358,8 +365,13 @@ private fun ToolboxNavigationOptionCard(
   } else {
     MaterialTheme.colorScheme.onSurface
   }
-  val subColor = if (selected) {
-    MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.86f)
+  val descColor = if (selected) {
+    MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.90f)
+  } else {
+    MaterialTheme.colorScheme.onSurfaceVariant
+  }
+  val statusColor = if (selected) {
+    MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.80f)
   } else {
     MaterialTheme.colorScheme.onSurfaceVariant
   }
@@ -380,12 +392,13 @@ private fun ToolboxNavigationOptionCard(
       .clip(RoundedCornerShape(20.dp))
       .background(containerColor)
       .clickable(onClick = onClick)
-      .padding(horizontal = if (compact) 14.dp else 16.dp, vertical = if (compact) 10.dp else 14.dp),
-    verticalAlignment = Alignment.CenterVertically,
+      .padding(horizontal = if (compact) 14.dp else 16.dp, vertical = if (compact) 11.dp else 15.dp),
+    verticalAlignment = Alignment.Top,
     horizontalArrangement = Arrangement.spacedBy(12.dp)
   ) {
     Box(
       modifier = Modifier
+        .padding(top = 2.dp)
         .size(if (compact) 34.dp else 38.dp)
         .clip(RoundedCornerShape(12.dp))
         .background(
@@ -404,14 +417,24 @@ private fun ToolboxNavigationOptionCard(
 
     Column(
       modifier = Modifier.weight(1f),
-      verticalArrangement = Arrangement.spacedBy(3.dp)
+      verticalArrangement = Arrangement.spacedBy(5.dp)
     ) {
       Text(
         text = title,
         style = if (compact) MaterialTheme.typography.bodyMedium else MaterialTheme.typography.bodyLarge,
-        fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+        fontWeight = FontWeight.SemiBold,
         color = titleColor
       )
+
+      Text(
+        text = description,
+        style = MaterialTheme.typography.bodySmall,
+        color = descColor,
+        maxLines = if (compact) 2 else 4,
+        overflow = TextOverflow.Ellipsis,
+        modifier = Modifier.testTag(descriptionTag)
+      )
+
       Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp)
@@ -423,9 +446,9 @@ private fun ToolboxNavigationOptionCard(
             .background(dotColor)
         )
         Text(
-          text = subtitle,
-          style = MaterialTheme.typography.bodySmall,
-          color = subColor,
+          text = statusText,
+          style = MaterialTheme.typography.labelMedium,
+          color = statusColor,
           maxLines = 1,
           overflow = TextOverflow.Ellipsis
         )
@@ -506,8 +529,8 @@ fun ToolboxWelcomeDialog(
   ) {
     Surface(
       modifier = Modifier
-        .widthIn(max = 520.dp)
-        .fillMaxWidth(0.92f)
+        .widthIn(max = 460.dp)
+        .fillMaxWidth(0.90f)
         .testTag("welcome_popup_dialog"),
       shape = RoundedCornerShape(28.dp),
       color = studio.card,
@@ -525,91 +548,33 @@ fun ToolboxWelcomeDialog(
           text = "Welcome to Googlebook Toolbox",
           style = MaterialTheme.typography.headlineSmall,
           fontWeight = FontWeight.SemiBold,
-          color = MaterialTheme.colorScheme.onSurface
+          color = MaterialTheme.colorScheme.onSurface,
+          textAlign = TextAlign.Center
         )
 
         Text(
-          text = "Googlebook Toolbox is a collection of useful utilities and tools to manage, diagnose, and get more out of your Googlebook — all in one unified workspace.",
+          text = "Googlebook Toolbox is a handy toolbox of useful utilities and tools designed to help you manage, troubleshoot, and get the most out of your Googlebook — all in one place.",
           style = MaterialTheme.typography.bodyLarge,
-          color = MaterialTheme.colorScheme.onSurfaceVariant
+          color = MaterialTheme.colorScheme.onSurfaceVariant,
+          textAlign = TextAlign.Center
         )
 
-        Column(
-          modifier = Modifier.fillMaxWidth(),
-          verticalArrangement = Arrangement.spacedBy(8.dp)
+        Button(
+          onClick = onDismiss,
+          shape = RoundedCornerShape(18.dp),
+          colors = ButtonDefaults.buttonColors(
+            containerColor = MaterialTheme.colorScheme.primary,
+            contentColor = MaterialTheme.colorScheme.onPrimary
+          ),
+          contentPadding = PaddingValues(horizontal = 28.dp, vertical = 12.dp),
+          modifier = Modifier.testTag("welcome_popup_dismiss_button")
         ) {
-          WelcomeToolRow(
-            icon = Icons.Default.Phonelink,
-            title = "Companion Phone Connectivity Checker",
-            description = "Verify all 7 Better Together cross-device dependencies across your Googlebook and phone with one-click fixes."
+          Text(
+            text = "Get Started",
+            style = MaterialTheme.typography.labelLarge
           )
-          WelcomeToolRow(
-            icon = Icons.Default.Restore,
-            title = "Desktop App & Workspace Restorer",
-            description = "Automatically capture and restore open desktop windows, Virtual Desks, multi-display layouts, and Chrome tabs after reboot."
-          )
-        }
-
-        Row(
-          modifier = Modifier.fillMaxWidth(),
-          horizontalArrangement = Arrangement.End
-        ) {
-          Button(
-            onClick = onDismiss,
-            shape = RoundedCornerShape(18.dp),
-            colors = ButtonDefaults.buttonColors(
-              containerColor = MaterialTheme.colorScheme.primary,
-              contentColor = MaterialTheme.colorScheme.onPrimary
-            ),
-            contentPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp),
-            modifier = Modifier.testTag("welcome_popup_dismiss_button")
-          ) {
-            Text(
-              text = "Get Started",
-              style = MaterialTheme.typography.labelLarge
-            )
-          }
         }
       }
-    }
-  }
-}
-
-@Composable
-private fun WelcomeToolRow(
-  icon: ImageVector,
-  title: String,
-  description: String
-) {
-  val studio = LocalStudioColors.current
-  Row(
-    modifier = Modifier
-      .fillMaxWidth()
-      .clip(RoundedCornerShape(16.dp))
-      .background(studio.chrome)
-      .padding(horizontal = 16.dp, vertical = 12.dp),
-    verticalAlignment = Alignment.Top,
-    horizontalArrangement = Arrangement.spacedBy(12.dp)
-  ) {
-    Icon(
-      imageVector = icon,
-      contentDescription = null,
-      tint = MaterialTheme.colorScheme.primary,
-      modifier = Modifier
-        .padding(top = 2.dp)
-        .size(22.dp)
-    )
-    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-      Text(
-        text = title,
-        style = MaterialTheme.typography.titleSmall,
-        color = MaterialTheme.colorScheme.onSurface
-      )
-      Text(
-        text = description,
-        style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant
-      )
     }
   }
 }

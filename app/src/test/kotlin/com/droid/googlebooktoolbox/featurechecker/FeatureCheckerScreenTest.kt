@@ -98,9 +98,10 @@ class FeatureCheckerScreenTest {
       }
     }
 
-    // Verify title, feature card, and two-column headers ("This device" & "Companion device")
+    // Verify title, removed overview pane, and two-column headers ("This device" & "Companion device")
     composeTestRule.onNodeWithText("Googlebook Feature Checker").assertIsDisplayed()
-    composeTestRule.onNodeWithTag("feature_card_better_together").assertIsDisplayed()
+    composeTestRule.onNodeWithTag("feature_card_better_together").assertDoesNotExist()
+    composeTestRule.onNodeWithTag("reference_thread_button").assertDoesNotExist()
     composeTestRule.onNodeWithTag("build_type_callout_card").assertDoesNotExist()
     composeTestRule.onNodeWithTag("dependencies_lazy_column")
       .performScrollToNode(hasTestTag("column_header_this_device"))

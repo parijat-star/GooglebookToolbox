@@ -114,7 +114,10 @@ class ToolboxScreenTest {
 
     composeTestRule.onNodeWithTag("welcome_popup_dialog").assertIsDisplayed()
     composeTestRule.onNodeWithText("Welcome to Googlebook Toolbox", substring = true).assertIsDisplayed()
-    composeTestRule.onNodeWithText("collection of useful utilities", substring = true, ignoreCase = true).assertIsDisplayed()
+    composeTestRule.onNodeWithText("toolbox of useful", substring = true, ignoreCase = true).assertIsDisplayed()
+    // Welcome popup should NOT list the 2 individual feature rows
+    composeTestRule.onNodeWithText("Companion Phone Connectivity Checker").assertDoesNotExist()
+    composeTestRule.onNodeWithText("Desktop App & Workspace Restorer").assertDoesNotExist()
 
     composeTestRule.onNodeWithTag("welcome_popup_dismiss_button").performClick()
     assertTrue(prefs.hasSeenWelcomePopup)
@@ -161,11 +164,15 @@ class ToolboxScreenTest {
       }
     }
 
-    // Left pane displays logo + both requested navigation options
+    // Left pane displays logo + both requested navigation options + their descriptive lines underneath
     composeTestRule.onNodeWithTag("toolbox_left_pane").assertIsDisplayed()
     composeTestRule.onNodeWithTag("toolbox_logo_canvas").assertIsDisplayed()
     composeTestRule.onNodeWithText("Check your companion phone connectivity status").assertIsDisplayed()
+    composeTestRule.onNodeWithTag("nav_desc_feature_checker", useUnmergedTree = true).assertIsDisplayed()
+    composeTestRule.onNodeWithText("fixes missing dependencies on your Googlebook", substring = true, useUnmergedTree = true).assertIsDisplayed()
     composeTestRule.onNodeWithText("Enable desktop restorer on reboot").assertIsDisplayed()
+    composeTestRule.onNodeWithTag("nav_desc_app_restorer", useUnmergedTree = true).assertIsDisplayed()
+    composeTestRule.onNodeWithText("captures and restores open desktop windows", substring = true, useUnmergedTree = true).assertIsDisplayed()
 
     // Right pane initially displays Googlebook Feature Checker UI
     composeTestRule.onNodeWithTag("toolbox_right_pane").assertIsDisplayed()

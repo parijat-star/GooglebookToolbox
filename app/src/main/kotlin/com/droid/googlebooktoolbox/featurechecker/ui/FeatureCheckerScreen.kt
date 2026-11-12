@@ -1,6 +1,5 @@
 package com.droid.googlebooktoolbox.featurechecker.ui
 
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
@@ -12,14 +11,12 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.captionBar
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -30,14 +27,11 @@ import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsTopHeight
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Devices
 import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
@@ -54,14 +48,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
@@ -69,20 +56,14 @@ import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.droid.googlebooktoolbox.featurechecker.model.DependencyCheckItem
 import com.droid.googlebooktoolbox.featurechecker.model.DependencyId
 import com.droid.googlebooktoolbox.featurechecker.model.FeatureCheckerUiState
-import com.droid.googlebooktoolbox.featurechecker.model.FeatureItem
 import com.droid.googlebooktoolbox.featurechecker.model.PhoneReportState
 import com.droid.googlebooktoolbox.featurechecker.model.ThemeMode
 import com.droid.googlebooktoolbox.featurechecker.ui.theme.LocalStudioColors
@@ -327,61 +308,16 @@ fun FeatureCheckerScreen(
           }
         }
 
-        if (wide) {
-          Row(Modifier.fillMaxSize()) {
-            // Left Pane (chrome surface, 420.dp wide, matching HearOn Link's DevicePane)
-            Column(
-              modifier = Modifier
-                .width(420.dp)
-                .fillMaxHeight()
-                .background(chrome)
-                .verticalScroll(rememberScrollState())
-                .padding(start = 28.dp, end = 28.dp, top = 8.dp, bottom = 28.dp),
-              verticalArrangement = Arrangement.spacedBy(22.dp)
-            ) {
-              StudioDeviceOverviewPane(
-                uiState = uiState,
-                isCompactPhone = false,
-                onSelectFeature = onSelectFeature,
-                onOpenReferenceThread = onOpenReferenceThread
-              )
-            }
-
-            // Right Pane (surface canvas with grouped borderless M3 Expressive cards)
-            Box(
-              modifier = Modifier
-                .weight(1f)
-                .fillMaxHeight()
-                .background(MaterialTheme.colorScheme.surface)
-            ) {
-              StudioDependenciesColumn(
-                uiState = uiState,
-                includeOverviewPane = false,
-                isCompactPhone = false,
-                horizontalPad = 32.dp,
-                onSelectFeature = onSelectFeature,
-                onToggleCheckMark = onToggleCheckMark,
-                onFocusDependency = onFocusDependency,
-                onExecuteAction = onExecuteAction,
-                onSendFeedbackReport = onSendFeedbackReport,
-                onOpenReferenceThread = onOpenReferenceThread
-              )
-            }
-          }
-        } else {
-          StudioDependenciesColumn(
-            uiState = uiState,
-            includeOverviewPane = true,
-            isCompactPhone = isCompactPhone,
-            horizontalPad = horizontalPad,
-            onSelectFeature = onSelectFeature,
-            onToggleCheckMark = onToggleCheckMark,
-            onFocusDependency = onFocusDependency,
-            onExecuteAction = onExecuteAction,
-            onSendFeedbackReport = onSendFeedbackReport,
-            onOpenReferenceThread = onOpenReferenceThread
-          )
-        }
+        StudioDependenciesColumn(
+          uiState = uiState,
+          isCompactPhone = isCompactPhone,
+          horizontalPad = horizontalPad,
+          onToggleCheckMark = onToggleCheckMark,
+          onFocusDependency = onFocusDependency,
+          onExecuteAction = onExecuteAction,
+          onSendFeedbackReport = onSendFeedbackReport,
+          onOpenReferenceThread = onOpenReferenceThread
+        )
       }
     }
   }
@@ -459,379 +395,6 @@ private fun RecheckPillButton(onRefreshChecks: () -> Unit) {
   }
 }
 
-/**
- * Overview pane in googlebook.studio / HearOn Link visual style:
- * 1. Minimalist line-art illustration of a Googlebook laptop & Pixel phone tapping from the side.
- * 2. Readiness metric cells with thin progress bars (Met, Click-marked, Phone status).
- * 3. Feature selector tile ("Googlebook Better Together") + grouped capability rows.
- */
-@Composable
-private fun StudioDeviceOverviewPane(
-  uiState: FeatureCheckerUiState,
-  isCompactPhone: Boolean,
-  onSelectFeature: (String) -> Unit,
-  onOpenReferenceThread: () -> Unit
-) {
-  val studio = LocalStudioColors.current
-  val metCount = uiState.dependencies.count { it.isMet }
-  val checkedCount = uiState.dependencies.count { it.isChecked }
-  val total = uiState.dependencies.size.coerceAtLeast(1)
-
-  // 1. Minimalist Line-Art Illustration (compact height on phone so checklist stays above the fold)
-  GooglebookAndPixelLineArt(
-    allMet = metCount == total,
-    modifier = Modifier
-      .fillMaxWidth()
-      .height(if (isCompactPhone) 124.dp else 158.dp)
-  )
-
-  // 2. Three Metric Cells with thin rounded progress bars
-  Row(
-    modifier = Modifier.fillMaxWidth(),
-    horizontalArrangement = Arrangement.spacedBy(if (isCompactPhone) 10.dp else 18.dp)
-  ) {
-    MetricBarCell(
-      label = "Dependencies",
-      headline = "$metCount/$total",
-      fraction = metCount.toFloat() / total.toFloat(),
-      sub = if (metCount == total) "All met" else "${total - metCount} need fix",
-      compact = isCompactPhone,
-      modifier = Modifier.weight(1f)
-    )
-    MetricBarCell(
-      label = "Click-marked",
-      headline = "$checkedCount/$total",
-      fraction = checkedCount.toFloat() / total.toFloat(),
-      sub = "Click to mark",
-      compact = isCompactPhone,
-      modifier = Modifier.weight(1f)
-    )
-    val phoneConnected = uiState.phoneReportState is PhoneReportState.Connected
-    MetricBarCell(
-      label = "Phone check",
-      headline = if (phoneConnected) "Linked" else "Tip",
-      fraction = if (phoneConnected) 1f else 0.35f,
-      sub = if (phoneConnected) "Verified" else "Run on phone",
-      compact = isCompactPhone,
-      modifier = Modifier.weight(1f)
-    )
-  }
-
-  // 3. Connected Feature Selector ("Feature")
-  Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-    Text(
-      text = "Feature",
-      style = MaterialTheme.typography.titleSmall,
-      color = MaterialTheme.colorScheme.onSurface
-    )
-
-    Row(
-      modifier = Modifier.fillMaxWidth(),
-      horizontalArrangement = Arrangement.spacedBy(4.dp)
-    ) {
-      uiState.features.forEach { feature ->
-        val selected = feature.id == uiState.selectedFeature.id
-        Box(
-          modifier = Modifier
-            .weight(1f)
-            .height(68.dp)
-            .clip(RoundedCornerShape(22.dp))
-            .background(
-              if (selected) MaterialTheme.colorScheme.primary
-              else MaterialTheme.colorScheme.secondaryContainer
-            )
-            .clickable { onSelectFeature(feature.id) }
-            .padding(horizontal = 16.dp)
-            .testTag("feature_card_${feature.id}"),
-          contentAlignment = Alignment.CenterStart
-        ) {
-          Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-          ) {
-            Icon(
-              imageVector = Icons.Default.Devices,
-              contentDescription = null,
-              tint = if (selected) MaterialTheme.colorScheme.onPrimary
-              else MaterialTheme.colorScheme.onSecondaryContainer,
-              modifier = Modifier.size(22.dp)
-            )
-            Column {
-              Text(
-                text = feature.title,
-                style = MaterialTheme.typography.labelLarge,
-                color = if (selected) MaterialTheme.colorScheme.onPrimary
-                else MaterialTheme.colorScheme.onSecondaryContainer
-              )
-              Text(
-                text = feature.subtitle,
-                style = MaterialTheme.typography.bodySmall,
-                color = (if (selected) MaterialTheme.colorScheme.onPrimary
-                else MaterialTheme.colorScheme.onSecondaryContainer).copy(alpha = 0.85f),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-              )
-            }
-          }
-        }
-      }
-    }
-  }
-
-  // 4. Grouped White Cards on Left Pane (like "Conversation awareness" / "Personalized volume" in HearOn Link)
-  Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-    val subFeatures = uiState.selectedFeature.subFeatures
-    val totalRows = subFeatures.size + 1
-    subFeatures.forEachIndexed { idx, line ->
-      val parts = line.split(" · ", limit = 2)
-      val title = parts.firstOrNull().orEmpty()
-      val sub = parts.getOrNull(1)
-      Box(
-        modifier = Modifier
-          .fillMaxWidth()
-          .clip(groupShape(idx, totalRows))
-          .background(studio.card)
-          .padding(horizontal = 18.dp, vertical = 12.dp)
-      ) {
-        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-          Text(
-            text = title,
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurface
-          )
-          if (sub != null) {
-            Text(
-              text = sub,
-              style = MaterialTheme.typography.bodySmall,
-              color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-          }
-        }
-      }
-    }
-
-    // Bottom row in group: Reference Support Thread #472325070
-    Row(
-      modifier = Modifier
-        .fillMaxWidth()
-        .clip(groupShape(totalRows - 1, totalRows))
-        .background(studio.card)
-        .clickable(onClick = onOpenReferenceThread)
-        .padding(horizontal = 18.dp, vertical = 13.dp)
-        .testTag("reference_thread_button"),
-      verticalAlignment = Alignment.CenterVertically,
-      horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-      Column(modifier = Modifier.weight(1f)) {
-        Text(
-          text = "Rollout & setup guide",
-          style = MaterialTheme.typography.bodyLarge,
-          color = MaterialTheme.colorScheme.onSurface
-        )
-        Text(
-          text = "Googlebook Community thread #472325070",
-          style = MaterialTheme.typography.bodySmall,
-          color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-      }
-      Icon(
-        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-        contentDescription = null,
-        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.size(20.dp)
-      )
-    }
-  }
-}
-
-@Composable
-private fun MetricBarCell(
-  label: String,
-  headline: String,
-  fraction: Float,
-  sub: String,
-  modifier: Modifier = Modifier,
-  compact: Boolean = false
-) {
-  val studio = LocalStudioColors.current
-  val primary = MaterialTheme.colorScheme.primary
-  Column(
-    modifier = modifier,
-    verticalArrangement = Arrangement.spacedBy(4.dp)
-  ) {
-    Text(
-      text = label,
-      style = MaterialTheme.typography.labelMedium,
-      color = MaterialTheme.colorScheme.onSurfaceVariant,
-      maxLines = 1,
-      overflow = TextOverflow.Ellipsis
-    )
-    Text(
-      text = headline,
-      style = MaterialTheme.typography.headlineSmall.copy(fontSize = if (compact) 19.sp else 23.sp),
-      color = MaterialTheme.colorScheme.onSurface
-    )
-    Box(
-      modifier = Modifier
-        .fillMaxWidth()
-        .height(7.dp)
-        .clip(CircleShape)
-        .background(studio.track)
-    ) {
-      Box(
-        modifier = Modifier
-          .fillMaxWidth(fraction.coerceIn(0.08f, 1f))
-          .fillMaxHeight()
-          .clip(CircleShape)
-          .background(primary)
-      )
-    }
-    Text(
-      text = sub,
-      style = MaterialTheme.typography.bodySmall,
-      color = MaterialTheme.colorScheme.onSurfaceVariant,
-      maxLines = 1,
-      overflow = TextOverflow.Ellipsis
-    )
-  }
-}
-
-@Composable
-private fun GooglebookAndPixelLineArt(
-  allMet: Boolean,
-  modifier: Modifier = Modifier
-) {
-  val cardFill = LocalStudioColors.current.card
-  val strokeColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.6f)
-  val accentColor = MaterialTheme.colorScheme.primary
-  val warnColor = MaterialTheme.colorScheme.tertiary
-
-  Canvas(modifier = modifier) {
-    val w = size.width
-    val h = size.height
-    val cx = w * 0.45f
-    val cy = h * 0.54f
-    val strokeW = 2.dp.toPx()
-
-    // Googlebook screen frame (clean white fill + subtle outline like HearOn Link's case illustration)
-    val lidW = 132.dp.toPx()
-    val lidH = 84.dp.toPx()
-    val lidLeft = cx - lidW / 2f
-    val lidTop = cy - lidH / 2f - 6.dp.toPx()
-
-    drawRoundRect(
-      color = cardFill,
-      topLeft = Offset(lidLeft, lidTop),
-      size = Size(lidW, lidH),
-      cornerRadius = CornerRadius(12.dp.toPx(), 12.dp.toPx())
-    )
-    drawRoundRect(
-      color = strokeColor,
-      topLeft = Offset(lidLeft, lidTop),
-      size = Size(lidW, lidH),
-      cornerRadius = CornerRadius(12.dp.toPx(), 12.dp.toPx()),
-      style = Stroke(width = strokeW)
-    )
-
-    // Googlebook base lip
-    val baseW = 152.dp.toPx()
-    val baseH = 10.dp.toPx()
-    val baseLeft = cx - baseW / 2f
-    val baseTop = lidTop + lidH
-    drawRoundRect(
-      color = cardFill,
-      topLeft = Offset(baseLeft, baseTop),
-      size = Size(baseW, baseH),
-      cornerRadius = CornerRadius(5.dp.toPx(), 5.dp.toPx())
-    )
-    drawRoundRect(
-      color = strokeColor,
-      topLeft = Offset(baseLeft, baseTop),
-      size = Size(baseW, baseH),
-      cornerRadius = CornerRadius(5.dp.toPx(), 5.dp.toPx()),
-      style = Stroke(width = strokeW)
-    )
-
-    // Center status LED dot inside Googlebook (just like the teal dot on the AirPods case)
-    drawCircle(
-      color = if (allMet) accentColor else warnColor,
-      radius = 3.5.dp.toPx(),
-      center = Offset(cx, lidTop + lidH * 0.52f)
-    )
-
-    // Tilted Pixel phone tapping from the right side
-    val phonePivotX = lidLeft + lidW + 18.dp.toPx()
-    val phonePivotY = cy - 4.dp.toPx()
-    val phoneW = 46.dp.toPx()
-    val phoneH = 88.dp.toPx()
-
-    withTransform({
-      rotate(degrees = -16f, pivot = Offset(phonePivotX, phonePivotY))
-    }) {
-      val pLeft = phonePivotX - phoneW / 2f
-      val pTop = phonePivotY - phoneH / 2f
-      drawRoundRect(
-        color = cardFill,
-        topLeft = Offset(pLeft, pTop),
-        size = Size(phoneW, phoneH),
-        cornerRadius = CornerRadius(10.dp.toPx(), 10.dp.toPx())
-      )
-      drawRoundRect(
-        color = strokeColor,
-        topLeft = Offset(pLeft, pTop),
-        size = Size(phoneW, phoneH),
-        cornerRadius = CornerRadius(10.dp.toPx(), 10.dp.toPx()),
-        style = Stroke(width = strokeW)
-      )
-      // Pixel camera bar visor line
-      val visorY = pTop + 18.dp.toPx()
-      val visorH = 10.dp.toPx()
-      drawLine(
-        color = strokeColor,
-        start = Offset(pLeft, visorY),
-        end = Offset(pLeft + phoneW, visorY),
-        strokeWidth = strokeW
-      )
-      drawLine(
-        color = strokeColor,
-        start = Offset(pLeft, visorY + visorH),
-        end = Offset(pLeft + phoneW, visorY + visorH),
-        strokeWidth = strokeW
-      )
-      // Camera pill inside visor
-      drawRoundRect(
-        color = strokeColor,
-        topLeft = Offset(pLeft + 8.dp.toPx(), visorY + 2.5.dp.toPx()),
-        size = Size(18.dp.toPx(), 5.dp.toPx()),
-        cornerRadius = CornerRadius(3.dp.toPx(), 3.dp.toPx()),
-        style = Stroke(width = strokeW * 0.85f)
-      )
-      // Teal sync dot on Pixel
-      drawCircle(
-        color = accentColor,
-        radius = 3.dp.toPx(),
-        center = Offset(phonePivotX, pTop + phoneH * 0.62f)
-      )
-    }
-
-    // Subtle tap ripple arc between Pixel and Googlebook
-    val ripplePath = Path().apply {
-      moveTo(lidLeft + lidW - 3.dp.toPx(), cy - 14.dp.toPx())
-      quadraticTo(
-        lidLeft + lidW - 12.dp.toPx(),
-        cy - 2.dp.toPx(),
-        lidLeft + lidW - 3.dp.toPx(),
-        cy + 10.dp.toPx()
-      )
-    }
-    drawPath(
-      path = ripplePath,
-      color = accentColor.copy(alpha = 0.75f),
-      style = Stroke(width = strokeW, cap = StrokeCap.Round)
-    )
-  }
-}
-
 private const val DEPENDENCY_INFO_WEIGHT = 1.25f
 private const val THIS_DEVICE_COL_WEIGHT = 0.85f
 private const val COMPANION_DEVICE_COL_WEIGHT = 1.05f
@@ -839,18 +402,14 @@ private const val COMPANION_DEVICE_COL_WEIGHT = 1.05f
 @Composable
 private fun StudioDependenciesColumn(
   uiState: FeatureCheckerUiState,
-  includeOverviewPane: Boolean,
   isCompactPhone: Boolean,
   horizontalPad: Dp,
-  onSelectFeature: (String) -> Unit,
   onToggleCheckMark: (DependencyId) -> Unit,
   onFocusDependency: (Int) -> Unit,
   onExecuteAction: (DependencyCheckItem) -> Unit,
   onSendFeedbackReport: () -> Unit,
   onOpenReferenceThread: () -> Unit
 ) {
-  val studio = LocalStudioColors.current
-
   LazyColumn(
     modifier = Modifier
       .fillMaxSize()
@@ -859,26 +418,6 @@ private fun StudioDependenciesColumn(
     contentPadding = PaddingValues(vertical = if (isCompactPhone) 16.dp else 24.dp),
     verticalArrangement = Arrangement.spacedBy(if (isCompactPhone) 18.dp else 24.dp)
   ) {
-    if (includeOverviewPane) {
-      item {
-        Column(
-          modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(24.dp))
-            .background(studio.chrome)
-            .padding(if (isCompactPhone) 16.dp else 20.dp),
-          verticalArrangement = Arrangement.spacedBy(if (isCompactPhone) 14.dp else 18.dp)
-        ) {
-          StudioDeviceOverviewPane(
-            uiState = uiState,
-            isCompactPhone = isCompactPhone,
-            onSelectFeature = onSelectFeature,
-            onOpenReferenceThread = onOpenReferenceThread
-          )
-        }
-      }
-    }
-
     // Group 1: Dependencies Checklist with "This device" & "Companion device" column headers
     item {
       if (isCompactPhone) {
