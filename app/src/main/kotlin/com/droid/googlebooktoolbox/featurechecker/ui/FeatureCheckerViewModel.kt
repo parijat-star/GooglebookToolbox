@@ -1,9 +1,11 @@
 package com.droid.googlebooktoolbox.featurechecker.ui
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.droid.googlebooktoolbox.featurechecker.data.CompanionPhoneSnapshot
 import com.droid.googlebooktoolbox.featurechecker.data.DeviceEnvironmentProvider
 import com.droid.googlebooktoolbox.featurechecker.data.DeviceSystemSnapshot
+import com.droid.googlebooktoolbox.featurechecker.model.CheckStatus
 import com.droid.googlebooktoolbox.featurechecker.model.DependencyActionType
 import com.droid.googlebooktoolbox.featurechecker.model.DependencyCheckItem
 import com.droid.googlebooktoolbox.featurechecker.model.DependencyId
@@ -13,13 +15,22 @@ import com.droid.googlebooktoolbox.featurechecker.model.PhoneDependencyStatusIte
 import com.droid.googlebooktoolbox.featurechecker.model.PhoneReportState
 import com.droid.googlebooktoolbox.featurechecker.model.ThemeMode
 import com.droid.googlebooktoolbox.featurechecker.util.VersionComparator
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class FeatureCheckerViewModel(
-  private val environmentProvider: DeviceEnvironmentProvider
+  private val environmentProvider: DeviceEnvironmentProvider,
+  private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+  loadSynchronously: Boolean = true
 ) : ViewModel() {
 
   companion object {
@@ -48,12 +59,50 @@ class FeatureCheckerViewModel(
 
   private val manualCheckOverrides = mutableMapOf<DependencyId, Boolean>()
 
-  private val _uiState = MutableStateFlow(buildInitialState())
+  private val _uiState = MutableStateFlow(
+    if (loadSynchronously) buildInitialState() else buildPlaceholderState()
+  )
   val uiState: StateFlow<FeatureCheckerUiState> = _uiState.asStateFlow()
+
+  private var lastSnapshot: DeviceSystemSnapshot? = null
+
+  init {
+    if (!loadSynchronously) {
+      refreshChecksAsync(bannerMessage = null)
+    }
+  }
+
+  private fun formatTimestamp(): String {
+    return SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date())
+  }
+
+  private fun buildPlaceholderState(): FeatureCheckerUiState {
+    val selectedFeature = AVAILABLE_FEATURES.first()
+    return FeatureCheckerUiState(
+      themeMode = ThemeMode.SYSTEM,
+      features = AVAILABLE_FEATURES,
+      selectedFeature = selectedFeature,
+      localDeviceName = "Checking device…",
+      localDeviceRoleLabel = "Googlebook",
+      localBuildType = "checking",
+      isLocalBuildTypeValid = false,
+      dependencies = emptyList(),
+      focusedDependencyIndex = 0,
+      phoneReportState = PhoneReportState.Unreachable(
+        reason = "Inspecting local and companion status…",
+        tipTitle = "Tip: Install Googlebook Feature Checker on the other device",
+        tipMessage = "Install and run Googlebook Feature Checker directly on the other device to inspect its Android 17 / One UI 9.0 status and matching build type.",
+        phoneRequirementsChecklist = emptyList()
+      ),
+      isRefreshing = true,
+      lastCheckedTimestampText = "Checking…"
+    )
+  }
 
   private fun buildInitialState(): FeatureCheckerUiState {
     val snapshot = environmentProvider.readLocalSystemSnapshot()
     val companion = environmentProvider.probeCompanionPhone()
+    lastSnapshot = snapshot
     val selectedFeature = AVAILABLE_FEATURES.first()
     val dependencies = evaluateDependencies(snapshot, companion)
     val buildValid = isValidBuildType(snapshot.buildType) &&
@@ -73,13 +122,33 @@ class FeatureCheckerViewModel(
       dependencies = dependencies,
       focusedDependencyIndex = 0,
       phoneReportState = evaluatePhoneReportState(companion, snapshot),
-      lastCheckedTimestampText = "just now"
+      isRefreshing = false,
+      lastCheckedTimestampText = formatTimestamp()
     )
   }
 
   fun refreshChecks() {
     val snapshot = environmentProvider.readLocalSystemSnapshot()
     val companion = environmentProvider.probeCompanionPhone()
+    applySnapshotState(snapshot, companion, "Refreshed all 7 dependency checks.")
+  }
+
+  fun refreshChecksAsync(bannerMessage: String? = "Refreshed all 7 dependency checks.") {
+    _uiState.update { it.copy(isRefreshing = true) }
+    viewModelScope.launch {
+      val (snapshot, companion) = withContext(ioDispatcher) {
+        environmentProvider.readLocalSystemSnapshot() to environmentProvider.probeCompanionPhone()
+      }
+      applySnapshotState(snapshot, companion, bannerMessage)
+    }
+  }
+
+  private fun applySnapshotState(
+    snapshot: DeviceSystemSnapshot,
+    companion: CompanionPhoneSnapshot?,
+    bannerMessage: String?
+  ) {
+    lastSnapshot = snapshot
     val buildValid = isValidBuildType(snapshot.buildType) &&
       (companion == null || areBuildTypesMatching(snapshot.buildType, companion.buildType))
     val dependencies = evaluateDependencies(snapshot, companion)
@@ -95,8 +164,9 @@ class FeatureCheckerViewModel(
         isLocalBuildTypeValid = buildValid,
         dependencies = dependencies,
         phoneReportState = evaluatePhoneReportState(companion, snapshot),
-        lastCheckedTimestampText = "just now",
-        statusBannerMessage = "Refreshed all 7 dependency checks."
+        isRefreshing = false,
+        lastCheckedTimestampText = formatTimestamp(),
+        statusBannerMessage = bannerMessage
       )
     }
   }
@@ -183,13 +253,26 @@ class FeatureCheckerViewModel(
       appendLine("Reference: ${state.selectedFeature.referenceThreadUrl}")
       appendLine("Local Device: ${state.localDeviceName} (${state.localDeviceRoleLabel})")
       appendLine("Detected Build Type: ${state.localBuildType} (Both phone and Googlebook must have the same build type—'user' with 'user', or 'userdbg' with 'userdbg'; most production phone builds are 'user')")
+      lastSnapshot?.let { snap ->
+        appendLine("Permissions: FINE_LOCATION=${snap.hasLocationPermission}, BLUETOOTH_CONNECT=${snap.bluetoothPermissionGranted}")
+      }
       appendLine("Dependencies Met: $metCount / ${state.dependencies.size} (Click-marked: $checkedCount / ${state.dependencies.size})")
+      appendLine("Last Checked: ${state.lastCheckedTimestampText}")
       appendLine()
       appendLine("--- Dependency Breakdown (This Device vs. Companion Device) ---")
       state.dependencies.forEach { dep ->
         val mark = if (dep.isChecked) "[x]" else "[ ]"
-        val status = if (dep.isLocalDeviceMet) "MET" else "NOT MET"
-        appendLine("$mark ${dep.stepNumber}. ${dep.title}: This device = $status (${dep.detectedStatus}) | Companion device = ${dep.phoneRequirementNote}")
+        val statusTag = when (dep.status) {
+          CheckStatus.MET -> "MET"
+          CheckStatus.WARNING -> "MET-WITH-WARNING"
+          CheckStatus.ADVISORY -> "3P-ADVISORY"
+          CheckStatus.PERMISSION_REQUIRED -> "PERMISSION-REQUIRED"
+          CheckStatus.NOT_MET -> "NOT MET"
+        }
+        appendLine("$mark ${dep.stepNumber}. ${dep.title}: This device = [$statusTag] (${dep.detectedStatus}) | Companion device = ${dep.phoneRequirementNote}")
+        dep.warningOrAdvisoryNote?.let { note ->
+          appendLine("    Note: $note")
+        }
       }
       appendLine()
       appendLine("--- Companion Phone Status ---")
@@ -201,8 +284,8 @@ class FeatureCheckerViewModel(
           }
         }
         is PhoneReportState.Unreachable -> {
-          appendLine("Phone Direct Probe: Unreachable from laptop (${phone.reason})")
-          appendLine("Tip: Run Googlebook Feature Checker on the phone as well to verify phone dependencies.")
+          appendLine("Other Device Direct Probe: Unreachable (${phone.reason})")
+          appendLine("Tip: Install and run Googlebook Feature Checker on the other device as well to verify its dependencies.")
         }
       }
     }
@@ -317,7 +400,7 @@ class FeatureCheckerViewModel(
     val crossDetected = if (snapshot.crossDeviceInstalled) {
       "v${snapshot.crossDeviceVersionName ?: "unknown"} installed · requires v$REQUIRED_CROSS_DEVICE_VERSION+"
     } else {
-      "Not installed or outdated · requires v$REQUIRED_CROSS_DEVICE_VERSION+"
+      "Not installed · requires v$REQUIRED_CROSS_DEVICE_VERSION+"
     }
     val companionCrossMet = companion?.let {
       VersionComparator.isAtLeast(it.crossDeviceVersionName, REQUIRED_CROSS_DEVICE_VERSION)
@@ -335,6 +418,7 @@ class FeatureCheckerViewModel(
       detectedStatus = crossDetected,
       isMet = crossDeviceMet,
       isLocalDeviceMet = crossDeviceMet,
+      status = if (crossDeviceMet) CheckStatus.MET else CheckStatus.NOT_MET,
       companionIsMet = companionCrossMet,
       hasUpdateAvailable = crossDeviceUpdateAvailable,
       isChecked = manualCheckOverrides[DependencyId.CROSS_DEVICE_APK] ?: crossDeviceMet,
@@ -346,55 +430,85 @@ class FeatureCheckerViewModel(
       phoneRequirementNote = crossCompanionNote,
       actionLabel = "Update Apk",
       actionType = DependencyActionType.UPDATE_APK,
-      targetPackage = snapshot.crossDevicePackageName.ifBlank { CROSS_DEVICE_PACKAGE }
+      targetPackage = CROSS_DEVICE_PACKAGE
     )
 
     // 4. Private Home Wi-Fi & No Public/Captive Network, Host Isolation, or VPN
-    val wifiMet = snapshot.wifiConnected && !snapshot.isPublicOrCaptiveWifi && !snapshot.vpnActive
-    val extractedQuotedSsid = Regex("\"([^\"]+)\"").find(snapshot.networkSsidOrDescription)?.groupValues?.getOrNull(1)
-    val extractedParenSsid = Regex("\\(([^)]+)\\)").find(snapshot.networkSsidOrDescription)?.groupValues?.getOrNull(1)
-    val connectedWifiLabel = snapshot.connectedWifiName?.takeIf {
-      it.isNotBlank() && !it.equals("Not connected", ignoreCase = true)
-    } ?: extractedQuotedSsid
-      ?: extractedParenSsid
-      ?: if (snapshot.wifiConnected && snapshot.networkSsidOrDescription.isNotBlank()) {
-        snapshot.networkSsidOrDescription
-          .substringBefore(" · ")
-          .removePrefix("Connected to Wi-Fi:")
-          .trim()
-          .removeSurrounding("\"")
-      } else {
-        "Not connected"
-      }
-    val wifiDetectedStatus = if (!snapshot.wifiConnected) {
-      "Not connected to Wi-Fi"
-    } else {
-      "Connected to Wi-Fi: $connectedWifiLabel"
+    val wifiNeedsLocation = !snapshot.hasLocationPermission && snapshot.wifiConnected && !snapshot.wifiEthernetOnly
+    val wifiMet = snapshot.wifiConnected &&
+      !snapshot.isPublicOrCaptiveWifi &&
+      !snapshot.vpnActive &&
+      !wifiNeedsLocation
+    val connectedWifiLabel = resolveConnectedWifiLabel(snapshot)
+    val usableSsid = hasUsableWifiSsid(snapshot, connectedWifiLabel)
+    val wifiDetectedStatus = when {
+      !snapshot.wifiConnected -> "Not connected to Wi-Fi"
+      snapshot.wifiEthernetOnly -> "Connected via Ethernet LAN"
+      else -> "Connected to Wi-Fi: $connectedWifiLabel"
     }
     val companionWifiMet = companion?.privateWifiConnected
     val wifiPhoneNote = when {
-      companion != null && snapshot.wifiConnected ->
+      companion != null && usableSsid ->
         "${companion.phoneModel}: Private Wi-Fi ${if (companion.privateWifiConnected) "connected" else "not connected"} (match \"$connectedWifiLabel\")"
       companion != null ->
         "${companion.phoneModel}: Private Wi-Fi ${if (companion.privateWifiConnected) "connected" else "not connected"}"
-      snapshot.wifiConnected && wifiMet ->
+      usableSsid && wifiMet ->
         "Please check your other device is also on Wi-Fi \"$connectedWifiLabel\" (with no active VPN)."
-      snapshot.wifiConnected ->
+      usableSsid ->
         "Please check your other device is also on Wi-Fi \"$connectedWifiLabel\" — switch both devices to a private home Wi-Fi."
       else ->
         "Please check your other device is also on the same private home Wi-Fi."
     }
     val wifiWhyNot = when {
-      !wifiMet && !snapshot.wifiDetailedIssue.isNullOrBlank() ->
-        snapshot.wifiDetailedIssue
       !snapshot.wifiConnected ->
         "Not connected to Wi-Fi. Connect both your Googlebook and phone to the same private home Wi-Fi network."
+      snapshot.vpnActive && snapshot.isPublicOrCaptiveWifi ->
+        snapshot.wifiDetailedIssue?.takeIf { it.isNotBlank() }
+          ?: "Public/guest Wi-Fi (\"$connectedWifiLabel\") and an active VPN were detected. Switch to a private home Wi-Fi network and pause any VPN during setup."
+      snapshot.vpnActive ->
+        if (usableSsid) {
+          "An active VPN or DNS blocker was detected on \"$connectedWifiLabel\". Pause any VPN or custom DNS blocker during Better Together setup."
+        } else {
+          "An active VPN or DNS blocker was detected. Pause any VPN or custom DNS blocker during Better Together setup."
+        }
+      !wifiMet && !snapshot.isPublicOrCaptiveWifi && wifiNeedsLocation ->
+        "Location permission is required on Android to read the Wi-Fi SSID and confirm you are not on a guest or public network."
+      !wifiMet && !snapshot.wifiDetailedIssue.isNullOrBlank() ->
+        snapshot.wifiDetailedIssue
       snapshot.isPublicOrCaptiveWifi ->
         "Public, hotel, cafe, office, or guest Wi-Fi (\"$connectedWifiLabel\") detected—these networks enforce AP host isolation so devices cannot talk to each other. Switch to a private home Wi-Fi."
-      snapshot.vpnActive ->
-        "An active VPN or DNS blocker was detected on \"$connectedWifiLabel\". Pause any VPN or custom DNS blocker during Better Together setup."
+      snapshot.wifiEthernetOnly ->
+        "Connected via wired Ethernet LAN with no captive portal or active VPN."
       else ->
-        "Connected to private Wi-Fi \"$connectedWifiLabel\" with no captive portal, host isolation, or active VPN."
+        if (usableSsid) {
+          "Connected to private Wi-Fi \"$connectedWifiLabel\" with no captive portal or active VPN."
+        } else {
+          "Connected to private Wi-Fi with no captive portal or active VPN."
+        }
+    }
+    val wifiWarningList = buildList {
+      if (wifiNeedsLocation) {
+        add("Location permission is required on Android to view the Wi-Fi SSID and detect guest/public network names.")
+      }
+      addAll(snapshot.wifiWarnings)
+    }.distinct()
+    val wifiStatus = when {
+      wifiNeedsLocation && !snapshot.isPublicOrCaptiveWifi && !snapshot.vpnActive -> CheckStatus.PERMISSION_REQUIRED
+      !wifiMet -> CheckStatus.NOT_MET
+      wifiWarningList.isNotEmpty() -> CheckStatus.WARNING
+      else -> CheckStatus.MET
+    }
+    val wifiActionLabel = when {
+      snapshot.vpnActive -> "Pause VPN"
+      !snapshot.wifiConnected -> "Connect Wi-Fi"
+      snapshot.isPublicOrCaptiveWifi -> "Switch Wi-Fi"
+      wifiNeedsLocation -> "Grant Location"
+      else -> "Fix Wi-Fi"
+    }
+    val wifiActionType = if (wifiNeedsLocation && !snapshot.vpnActive && !snapshot.isPublicOrCaptiveWifi && snapshot.wifiConnected) {
+      DependencyActionType.REQUEST_LOCATION_PERMISSION
+    } else {
+      DependencyActionType.OPEN_WIFI_SETTINGS
     }
     val wifiItem = DependencyCheckItem(
       id = DependencyId.PRIVATE_WIFI,
@@ -404,21 +518,30 @@ class FeatureCheckerViewModel(
       detectedStatus = wifiDetectedStatus,
       isMet = wifiMet,
       isLocalDeviceMet = wifiMet,
+      status = wifiStatus,
       companionIsMet = companionWifiMet,
-      hasUpdateAvailable = false,
+      hasUpdateAvailable = wifiNeedsLocation,
       isChecked = manualCheckOverrides[DependencyId.PRIVATE_WIFI] ?: wifiMet,
       whyNotOrFixInstruction = wifiWhyNot,
+      warningOrAdvisoryNote = wifiWarningList.takeIf { it.isNotEmpty() }?.joinToString(" • "),
       phoneRequirementNote = wifiPhoneNote,
-      actionLabel = "Wifi Not Supported",
-      actionType = DependencyActionType.OPEN_WIFI_SETTINGS
+      actionLabel = wifiActionLabel,
+      actionType = wifiActionType
     )
 
     // 5. Bluetooth Enabled
-    val btMet = snapshot.bluetoothSupported && snapshot.bluetoothEnabled
-    val btStatus = when {
+    val btPermissionMissing = snapshot.bluetoothSupported && !snapshot.bluetoothPermissionGranted
+    val btMet = snapshot.bluetoothSupported && snapshot.bluetoothPermissionGranted && snapshot.bluetoothEnabled
+    val btStatusText = when {
       !snapshot.bluetoothSupported -> "Bluetooth adapter unavailable"
+      btPermissionMissing -> "Bluetooth permission required to verify adapter state"
       snapshot.bluetoothEnabled -> "Bluetooth is on"
       else -> "Bluetooth is off"
+    }
+    val btStatusEnum = when {
+      btPermissionMissing -> CheckStatus.PERMISSION_REQUIRED
+      btMet -> CheckStatus.MET
+      else -> CheckStatus.NOT_MET
     }
     val companionBtMet = companion?.bluetoothEnabled
     val btCompanionNote = if (companion != null) {
@@ -431,41 +554,64 @@ class FeatureCheckerViewModel(
       stepNumber = 5,
       title = "Bluetooth turned on",
       requirementSummary = "Used alongside Wi-Fi to discover your nearby phone and complete pairing.",
-      detectedStatus = btStatus,
+      detectedStatus = btStatusText,
       isMet = btMet,
       isLocalDeviceMet = btMet,
+      status = btStatusEnum,
       companionIsMet = companionBtMet,
       hasUpdateAvailable = false,
       isChecked = manualCheckOverrides[DependencyId.BLUETOOTH] ?: btMet,
-      whyNotOrFixInstruction = if (btMet) {
-        "Bluetooth is active for proximity discovery."
-      } else {
-        "Bluetooth is turned off. Turn Bluetooth on for both your Googlebook and your phone."
+      whyNotOrFixInstruction = when {
+        btMet -> "Bluetooth is active for proximity discovery."
+        btPermissionMissing -> "Grant Nearby devices (Bluetooth) permission so this app can verify whether Bluetooth is enabled."
+        else -> "Bluetooth is turned off. Turn Bluetooth on for both your Googlebook and your phone."
       },
       phoneRequirementNote = btCompanionNote,
-      actionLabel = "Enable Bluetooth",
-      actionType = DependencyActionType.OPEN_BLUETOOTH_SETTINGS
+      actionLabel = if (btPermissionMissing) "Grant Permission" else "Enable Bluetooth",
+      actionType = if (btPermissionMissing) {
+        DependencyActionType.REQUEST_BLUETOOTH_PERMISSION
+      } else {
+        DependencyActionType.OPEN_BLUETOOTH_SETTINGS
+      }
     )
 
     // 6. Same Personal Google Account & "Continue Activity" Options
-    val continueMet = snapshot.hasGoogleAccountSignedIn && snapshot.continueActivityConfigured
-    val continueStatus = if (continueMet) {
-      "Cross-device services available on this device"
+    val continueVerified = snapshot.continueActivityVerifiedBySystem
+    val continueMet = continueVerified && snapshot.hasGoogleAccountSignedIn && snapshot.continueActivityConfigured
+    val continueCheckStatus = when {
+      !continueVerified -> CheckStatus.ADVISORY
+      continueMet -> CheckStatus.MET
+      else -> CheckStatus.NOT_MET
+    }
+    val continueStatusText = when {
+      !continueVerified && snapshot.crossDeviceSettingsResolvable ->
+        "Cross-device settings available · Manual verification required"
+      !continueVerified ->
+        "Cannot verify account parity or toggles from a third-party app"
+      continueMet ->
+        "Cross-device services available on this device"
+      else ->
+        "Needs setup in Settings > Cross-device services > Continue activity"
+    }
+    val continueAdvisoryNote = if (!continueVerified) {
+      "Android blocks third-party apps from inspecting Google account parity or private Continue activity toggles. Tap 'Open Cross-Device Settings' to confirm manually."
     } else {
-      "Needs setup in Settings > Cross-device services > Continue activity"
+      null
     }
     val continueItem = DependencyCheckItem(
       id = DependencyId.CONTINUE_ACTIVITY_SETTINGS,
       stepNumber = 6,
       title = "Same Google account & 'Continue activity' options",
       requirementSummary = "Sign into the same personal Google account and enable Tasks, Apps, Notifications, and Files & media sharing, then restart both devices.",
-      detectedStatus = continueStatus,
+      detectedStatus = continueStatusText,
       isMet = continueMet,
       isLocalDeviceMet = continueMet,
+      status = continueCheckStatus,
       companionIsMet = null,
       hasUpdateAvailable = false,
       isChecked = manualCheckOverrides[DependencyId.CONTINUE_ACTIVITY_SETTINGS] ?: continueMet,
       whyNotOrFixInstruction = "In Settings > Cross-device services > Continue activity, turn on Tasks, Apps, Notifications, and Files & media sharing, then restart your phone and Googlebook.",
+      warningOrAdvisoryNote = continueAdvisoryNote,
       phoneRequirementNote = "Please check your other device is also on the same Google account with 'Continue activity' options turned on.",
       actionLabel = "Open Cross-Device Settings",
       actionType = DependencyActionType.OPEN_CROSS_DEVICE_SETTINGS
@@ -527,6 +673,7 @@ class FeatureCheckerViewModel(
   private fun resolveConnectedWifiLabel(snapshot: DeviceSystemSnapshot): String {
     val extractedQuotedSsid = Regex("\"([^\"]+)\"").find(snapshot.networkSsidOrDescription)?.groupValues?.getOrNull(1)
     val extractedParenSsid = Regex("\\(([^)]+)\\)").find(snapshot.networkSsidOrDescription)?.groupValues?.getOrNull(1)
+      ?.takeUnless { it.matches(Regex("""\d+\s+warnings?""", RegexOption.IGNORE_CASE)) }
     return snapshot.connectedWifiName?.takeIf {
       it.isNotBlank() && !it.equals("Not connected", ignoreCase = true)
     } ?: extractedQuotedSsid
@@ -535,11 +682,22 @@ class FeatureCheckerViewModel(
         snapshot.networkSsidOrDescription
           .substringBefore(" · ")
           .removePrefix("Connected to Wi-Fi:")
+          .replace(Regex("""\s*\(\d+\s+warnings?\)$""", RegexOption.IGNORE_CASE), "")
           .trim()
           .removeSurrounding("\"")
       } else {
         "Not connected"
       }
+  }
+
+  private fun hasUsableWifiSsid(snapshot: DeviceSystemSnapshot, resolvedLabel: String): Boolean {
+    return snapshot.wifiConnected &&
+      !snapshot.wifiEthernetOnly &&
+      snapshot.wifiHasKnownSsid &&
+      resolvedLabel.isNotBlank() &&
+      !resolvedLabel.equals("Not connected", ignoreCase = true) &&
+      !resolvedLabel.equals("Ethernet LAN", ignoreCase = true) &&
+      !resolvedLabel.startsWith("Wi-Fi (", ignoreCase = true)
   }
 
   private fun evaluatePhoneReportState(
@@ -549,23 +707,23 @@ class FeatureCheckerViewModel(
     val localBuildType = snapshot.buildType
     val expectedPairLabel = if (normalizeBuildType(localBuildType) == "user") "user" else "userdbg"
     val connectedWifiLabel = resolveConnectedWifiLabel(snapshot)
-    val networkRequirementLine = if (snapshot.wifiConnected && connectedWifiLabel != "Not connected") {
+    val networkRequirementLine = if (hasUsableWifiSsid(snapshot, connectedWifiLabel)) {
       "Network: Same private Wi-Fi (\"$connectedWifiLabel\"), No VPN & Bluetooth ON"
     } else {
       "Network: Same private Wi-Fi, No VPN & Bluetooth ON"
     }
     if (companion == null) {
       return PhoneReportState.Unreachable(
-        reason = "Android isolates cross-device package and system build inspection unless a companion responder is active on your phone.",
-        tipTitle = "Tip: Run Googlebook Feature Checker on your phone",
-        tipMessage = "Install and open this same Googlebook Feature Checker app on your phone to automatically check its Android 17 / One UI 9.0 status, verify that its build type matches this device ('$expectedPairLabel'), and update Google Play services or Cross-device services directly on the phone.",
+        reason = "No active companion bridge detected (ADB loopback probe on 127.0.0.1:47232 is disabled by default and Android isolates cross-device inspection).",
+        tipTitle = "Tip: Install Googlebook Feature Checker on the other device",
+        tipMessage = "Install and run Googlebook Feature Checker directly on the other device to check its Android 17 / One UI 9.0 status, verify that its build type matches this device ('$expectedPairLabel'), and update Google Play services or Cross-device services directly on that device.",
         phoneRequirementsChecklist = listOf(
-          "OS version: Android 17 (One UI 9.0 on Samsung Galaxy phones)",
+          "OS version: Android 17 (One UI 9.0 on Samsung Galaxy devices)",
           "Google Play services APK: v26.37 or newer",
           "Cross-device services APK: v1.0.1346 or newer",
           networkRequirementLine,
           "Continue activity: Tasks, Apps, Notifications, and Files & media sharing on, then restart both devices",
-          "Matching build type: Must match this device ('$expectedPairLabel' — if Googlebook is 'user', phone must be 'user'; if Googlebook is 'userdbg', phone must be 'userdbg' too; most production phone builds are 'user')"
+          "Matching build type: Must match this device ('$expectedPairLabel' — both devices must be 'user', or both 'userdbg'; most production builds are 'user')"
         )
       )
     }

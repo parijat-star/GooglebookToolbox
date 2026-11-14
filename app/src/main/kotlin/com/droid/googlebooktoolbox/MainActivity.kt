@@ -4,20 +4,26 @@ import android.Manifest
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.droid.googlebooktoolbox.apprestorer.WorkspaceRuntime
 import com.droid.googlebooktoolbox.apprestorer.boot.BootPromptLauncher
@@ -29,6 +35,8 @@ import com.droid.googlebooktoolbox.apprestorer.ui.MainUiState
 import com.droid.googlebooktoolbox.data.SharedPrefsToolboxPreferences
 import com.droid.googlebooktoolbox.featurechecker.data.DeviceEnvironmentProvider
 import com.droid.googlebooktoolbox.featurechecker.data.SystemDeviceEnvironmentProvider
+import com.droid.googlebooktoolbox.featurechecker.model.DependencyActionType
+import com.droid.googlebooktoolbox.featurechecker.model.DependencyCheckItem
 import com.droid.googlebooktoolbox.featurechecker.ui.FeatureCheckerViewModel
 import com.droid.googlebooktoolbox.featurechecker.ui.theme.GooglebookFeatureCheckerTheme
 import com.droid.googlebooktoolbox.featurechecker.util.ActionNavigator
@@ -67,7 +75,10 @@ class MainActivity : ComponentActivity() {
           modelClass.isAssignableFrom(ToolboxViewModel::class.java) ->
             ToolboxViewModel(toolboxPrefs, initialDest) as T
           modelClass.isAssignableFrom(FeatureCheckerViewModel::class.java) ->
-            FeatureCheckerViewModel(environmentProvider) as T
+            FeatureCheckerViewModel(
+              environmentProvider = environmentProvider,
+              loadSynchronously = false
+            ) as T
           else -> throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
         }
       }
@@ -80,6 +91,8 @@ class MainActivity : ComponentActivity() {
 
       val toolboxState by toolboxVm.uiState.collectAsState()
       val fcState by featureCheckerVm.uiState.collectAsState()
+      val lifecycleOwner = LocalLifecycleOwner.current
+      var pendingPermissionAction by remember { mutableStateOf<DependencyCheckItem?>(null) }
 
       val live by runtime.live.collectAsState()
       val pending by runtime.pending.collectAsState()
@@ -89,33 +102,65 @@ class MainActivity : ComponentActivity() {
       val diag by runtime.diagnosticsStatus.collectAsState()
       val auto by runtime.autoRestore.collectAsState()
 
-      val wifiPermissionLauncher = rememberLauncherForActivityResult(
+      val runtimePermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
-      ) { grantedMap ->
-        if (grantedMap.values.any { it }) {
-          featureCheckerVm.refreshChecks()
+      ) { permissions ->
+        val pendingAction = pendingPermissionAction
+        pendingPermissionAction = null
+        if (permissions.values.any { it }) {
+          featureCheckerVm.refreshChecksAsync(bannerMessage = "Permissions updated; refreshed checks.")
+        } else if (pendingAction != null) {
+          val msg = actionNavigator.executeDependencyAction(pendingAction)
+          featureCheckerVm.setStatusBannerMessage(msg)
         }
       }
 
-      // Only prompt for Wi-Fi SSID location permission after welcome popup is dismissed
+      fun missingStartupPermissions(): Array<String> = buildList {
+        if (ContextCompat.checkSelfPermission(
+            this@MainActivity,
+            Manifest.permission.ACCESS_FINE_LOCATION
+          ) != PackageManager.PERMISSION_GRANTED
+        ) {
+          add(Manifest.permission.ACCESS_FINE_LOCATION)
+          add(Manifest.permission.ACCESS_COARSE_LOCATION)
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+          ContextCompat.checkSelfPermission(
+            this@MainActivity,
+            Manifest.permission.BLUETOOTH_CONNECT
+          ) != PackageManager.PERMISSION_GRANTED
+        ) {
+          add(Manifest.permission.BLUETOOTH_CONNECT)
+        }
+      }.toTypedArray()
+
+      // Only prompt for runtime permissions after welcome popup is dismissed
       // and when the Companion Connectivity utility is active.
       LaunchedEffect(toolboxState.showWelcomePopup, toolboxState.selectedDestination) {
         if (!toolboxState.showWelcomePopup &&
           toolboxState.selectedDestination == ToolboxDestination.COMPANION_CONNECTIVITY
         ) {
-          val hasFine = ContextCompat.checkSelfPermission(
-            this@MainActivity,
-            Manifest.permission.ACCESS_FINE_LOCATION
-          ) == PackageManager.PERMISSION_GRANTED
-          if (!hasFine) {
-            wifiPermissionLauncher.launch(
-              arrayOf(
-                Manifest.permission.ACCESS_FINE_LOCATION,
-                Manifest.permission.ACCESS_COARSE_LOCATION
-              )
-            )
+          val missing = missingStartupPermissions()
+          if (missing.isNotEmpty()) {
+            runtimePermissionLauncher.launch(missing)
           }
         }
+      }
+
+      DisposableEffect(lifecycleOwner) {
+        var sawPause = false
+        val observer = LifecycleEventObserver { _, event ->
+          when (event) {
+            Lifecycle.Event.ON_PAUSE -> sawPause = true
+            Lifecycle.Event.ON_RESUME -> if (sawPause) {
+              sawPause = false
+              featureCheckerVm.refreshChecksAsync(bannerMessage = null)
+            }
+            else -> {}
+          }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
       }
 
       GooglebookFeatureCheckerTheme(themeMode = fcState.themeMode) {
@@ -132,10 +177,32 @@ class MainActivity : ComponentActivity() {
           onMoveFocusPrevious = featureCheckerVm::moveFocusPrevious,
           onToggleFocusedDependency = featureCheckerVm::toggleFocusedDependency,
           onExecuteAction = { item ->
-            val msg = actionNavigator.executeDependencyAction(item)
-            featureCheckerVm.setStatusBannerMessage(msg)
+            when (item.actionType) {
+              DependencyActionType.REQUEST_LOCATION_PERMISSION -> {
+                pendingPermissionAction = item
+                runtimePermissionLauncher.launch(
+                  arrayOf(
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.ACCESS_COARSE_LOCATION
+                  )
+                )
+              }
+              DependencyActionType.REQUEST_BLUETOOTH_PERMISSION -> {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                  pendingPermissionAction = item
+                  runtimePermissionLauncher.launch(arrayOf(Manifest.permission.BLUETOOTH_CONNECT))
+                } else {
+                  val msg = actionNavigator.executeDependencyAction(item)
+                  featureCheckerVm.setStatusBannerMessage(msg)
+                }
+              }
+              else -> {
+                val msg = actionNavigator.executeDependencyAction(item)
+                featureCheckerVm.setStatusBannerMessage(msg)
+              }
+            }
           },
-          onRefreshChecks = featureCheckerVm::refreshChecks,
+          onRefreshChecks = { featureCheckerVm.refreshChecksAsync() },
           onSetThemeMode = featureCheckerVm::setThemeMode,
           onCycleThemeMode = featureCheckerVm::cycleThemeMode,
           onSendFeedbackReport = {
