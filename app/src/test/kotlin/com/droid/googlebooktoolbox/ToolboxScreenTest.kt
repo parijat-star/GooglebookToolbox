@@ -3,8 +3,11 @@ package com.droid.googlebooktoolbox
 import android.content.Context
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsOff
+import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -270,6 +273,81 @@ class ToolboxScreenTest {
       exit()
     }
     composeTestRule.onNodeWithTag("hover_popup_app_restorer").assertDoesNotExist()
+
+    // Hover cursor over "Allow Antigravity and Terminal tasks to continue when lid close"
+    composeTestRule.onNodeWithTag("nav_item_lid_guard").performMouseInput {
+      enter(center)
+    }
+    composeTestRule.onNodeWithTag("hover_popup_lid_guard").assertIsDisplayed()
+    composeTestRule.onNodeWithText("Default OFF. Holds a partial wake lock", substring = true).assertIsDisplayed()
+
+    // Move cursor off third item -> hover pop-up disappears
+    composeTestRule.onNodeWithTag("nav_item_lid_guard").performMouseInput {
+      exit()
+    }
+    composeTestRule.onNodeWithTag("hover_popup_lid_guard").assertDoesNotExist()
+  }
+
+  @Test
+  fun lidCloseGuardTool_defaultsOffAndTogglesOnOff() {
+    val prefs = InMemoryToolboxPrefs(hasSeenWelcomePopup = true)
+    val toolboxVm = ToolboxViewModel(prefs)
+    val fcVm = FeatureCheckerViewModel(FakeEnvironmentProvider())
+    var enabledFlag by androidx.compose.runtime.mutableStateOf(false)
+
+    composeTestRule.setContent {
+      val toolboxState by toolboxVm.uiState.collectAsState()
+      val fcState by fcVm.uiState.collectAsState()
+      val lidState = com.droid.googlebooktoolbox.lidguard.LidGuardUiState(
+        config = com.droid.googlebooktoolbox.lidguard.LidGuardConfig(enabled = enabledFlag),
+        decision = com.droid.googlebooktoolbox.lidguard.WakeLockDecision(
+          shouldHoldWakeLock = false,
+          mode = if (enabledFlag) {
+            com.droid.googlebooktoolbox.lidguard.WakeLockMode.IDLE_ALLOW_SUSPEND
+          } else {
+            com.droid.googlebooktoolbox.lidguard.WakeLockMode.DISABLED
+          },
+          reason = if (enabledFlag) "Monitoring Antigravity & Terminal" else "Disabled"
+        ),
+        heartbeatWatcherScript = com.droid.googlebooktoolbox.lidguard.LidGuardEvaluator.buildVmWatcherCommand()
+      )
+      GooglebookFeatureCheckerTheme(themeMode = fcState.themeMode) {
+        GooglebookToolboxApp(
+          toolboxState = toolboxState,
+          onSelectDestination = toolboxVm::selectDestination,
+          onDismissWelcomePopup = toolboxVm::dismissWelcomePopup,
+          onOpenWelcomePopup = toolboxVm::openWelcomePopup,
+          featureCheckerState = fcState,
+          onSelectFeature = fcVm::selectFeature,
+          onToggleCheckMark = fcVm::toggleDependencyCheckMark,
+          onFocusDependency = fcVm::setFocusedDependencyIndex,
+          onMoveFocusNext = fcVm::moveFocusNext,
+          onMoveFocusPrevious = fcVm::moveFocusPrevious,
+          onToggleFocusedDependency = fcVm::toggleFocusedDependency,
+          onExecuteAction = {},
+          onRefreshChecks = fcVm::refreshChecks,
+          onSetThemeMode = fcVm::setThemeMode,
+          onCycleThemeMode = fcVm::cycleThemeMode,
+          onSendFeedbackReport = {},
+          onOpenReferenceThread = {},
+          appRestorerState = MainUiState(permissions = PermissionState()),
+          onGrantRestorerPermission = {},
+          onOpenRestorerAppInfo = {},
+          onCaptureWorkspace = {},
+          onOpenRestorePrompt = {},
+          onDismissPendingRestore = {},
+          onExportDiagnostics = {},
+          onAutoRestoreChange = {},
+          lidGuardState = lidState,
+          onLidGuardEnabledChange = { enabledFlag = it }
+        )
+      }
+    }
+
+    composeTestRule.onNodeWithTag("nav_item_lid_guard").performClick()
+    composeTestRule.onNodeWithTag("lid_guard_master_switch").assertIsOff()
+    composeTestRule.onNodeWithTag("lid_guard_master_switch").performClick()
+    composeTestRule.onNodeWithTag("lid_guard_master_switch").assertIsOn()
   }
 
   @Test
@@ -284,6 +362,15 @@ class ToolboxScreenTest {
     org.junit.Assert.assertEquals(
       ToolboxDestination.DESKTOP_RESTORER,
       MainActivity.resolveDestinationFromIntent(restorerIntent)
+    )
+
+    val lidGuardIntent = android.content.Intent().putExtra(
+      MainActivity.EXTRA_INITIAL_TOOL,
+      MainActivity.TOOL_LID_GUARD
+    )
+    org.junit.Assert.assertEquals(
+      ToolboxDestination.LID_CLOSE_GUARD,
+      MainActivity.resolveDestinationFromIntent(lidGuardIntent)
     )
   }
 

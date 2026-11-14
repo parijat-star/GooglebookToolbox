@@ -41,6 +41,7 @@ import com.droid.googlebooktoolbox.featurechecker.ui.FeatureCheckerViewModel
 import com.droid.googlebooktoolbox.featurechecker.ui.theme.GooglebookFeatureCheckerTheme
 import com.droid.googlebooktoolbox.featurechecker.util.ActionNavigator
 import com.droid.googlebooktoolbox.featurechecker.util.SystemActionLauncher
+import com.droid.googlebooktoolbox.lidguard.LidGuardController
 import com.droid.googlebooktoolbox.model.ToolboxDestination
 import com.droid.googlebooktoolbox.ui.GooglebookToolboxApp
 import com.droid.googlebooktoolbox.ui.ToolboxViewModel
@@ -49,11 +50,17 @@ class MainActivity : ComponentActivity() {
 
   private lateinit var permissions: PermissionCoordinator
   private lateinit var runtime: WorkspaceRuntime
+  private lateinit var lidGuardController: LidGuardController
   private var permissionState by mutableStateOf(PermissionState())
   private var toolboxViewModelRef: ToolboxViewModel? = null
 
   private val notificationRequest =
     registerForActivityResult(ActivityResultContracts.RequestPermission()) { refreshPermissions() }
+
+  private val sharedFolderPicker =
+    registerForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
+      lidGuardController.persistSharedFolderUri(uri)
+    }
 
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
@@ -61,6 +68,8 @@ class MainActivity : ComponentActivity() {
 
     permissions = PermissionCoordinator(this)
     runtime = WorkspaceRuntime.get(this)
+    lidGuardController = LidGuardController(applicationContext)
+    lidGuardController.syncWithPreferences()
     refreshPermissions()
 
     val toolboxPrefs = SharedPrefsToolboxPreferences(applicationContext)
@@ -91,6 +100,7 @@ class MainActivity : ComponentActivity() {
 
       val toolboxState by toolboxVm.uiState.collectAsState()
       val fcState by featureCheckerVm.uiState.collectAsState()
+      val lidGuardState by lidGuardController.uiState.collectAsState()
       val lifecycleOwner = LocalLifecycleOwner.current
       var pendingPermissionAction by remember { mutableStateOf<DependencyCheckItem?>(null) }
 
@@ -230,7 +240,26 @@ class MainActivity : ComponentActivity() {
           onOpenRestorePrompt = { BootPromptLauncher.launchPrompt(this, manualReview = true) },
           onDismissPendingRestore = { runtime.dismissPending() },
           onExportDiagnostics = { runtime.exportDiagnostics() },
-          onAutoRestoreChange = { runtime.setAutoRestore(it) }
+          onAutoRestoreChange = { runtime.setAutoRestore(it) },
+          lidGuardState = lidGuardState,
+          onLidGuardEnabledChange = { lidGuardController.setEnabled(it) },
+          onLidGuardCooldownChange = { lidGuardController.setCooldownSeconds(it) },
+          onLidGuardLowBatteryCutoffChange = { lidGuardController.setLowBatteryCutoffPercent(it) },
+          onLidGuardMaxHoldMinutesChange = { lidGuardController.setMaxHoldMinutes(it) },
+          onLidGuardPickSharedFolder = { sharedFolderPicker.launch(null) },
+          onLidGuardRequestBatteryUnrestricted = {
+            if (!safeStart(lidGuardController.buildBatteryOptimizationIntent())) {
+              safeStart(lidGuardController.buildAppBatterySettingsIntent(packageName))
+            }
+          },
+          onLidGuardOpenNotificationListenerSettings = {
+            safeStart(lidGuardController.buildNotificationListenerSettingsIntent())
+          },
+          onLidGuardOpenAppBatterySettings = { targetPkg ->
+            safeStart(lidGuardController.buildAppBatterySettingsIntent(targetPkg))
+          },
+          onLidGuardTriggerManualHold = { lidGuardController.triggerManualTestHold() },
+          onLidGuardClearManualHold = { lidGuardController.clearManualTestHold() }
         )
       }
     }
@@ -253,6 +282,7 @@ class MainActivity : ComponentActivity() {
     super.onResume()
     refreshPermissions()
     runtime.refreshPending()
+    lidGuardController.refreshReadiness()
     if (permissionState.isGranted(RequiredPermission.ACCESSIBILITY)) {
       WorkspaceMonitorForegroundService.start(this)
     }
@@ -287,6 +317,7 @@ class MainActivity : ComponentActivity() {
     const val EXTRA_INITIAL_TOOL = "initial_tool"
     const val TOOL_DESKTOP_RESTORER = "DESKTOP_RESTORER"
     const val TOOL_COMPANION_CONNECTIVITY = "COMPANION_CONNECTIVITY"
+    const val TOOL_LID_GUARD = "LID_CLOSE_GUARD"
 
     fun resolveDestinationFromIntent(intent: Intent?): ToolboxDestination {
       val toolExtra = try {
@@ -296,6 +327,7 @@ class MainActivity : ComponentActivity() {
       }
       return when (toolExtra) {
         TOOL_DESKTOP_RESTORER -> ToolboxDestination.DESKTOP_RESTORER
+        TOOL_LID_GUARD -> ToolboxDestination.LID_CLOSE_GUARD
         else -> ToolboxDestination.COMPANION_CONNECTIVITY
       }
     }

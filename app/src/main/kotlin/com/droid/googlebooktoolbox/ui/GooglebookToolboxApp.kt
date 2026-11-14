@@ -31,6 +31,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.LaptopChromebook
 import androidx.compose.material.icons.filled.Phonelink
 import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material3.Button
@@ -73,6 +74,8 @@ import com.droid.googlebooktoolbox.featurechecker.model.FeatureCheckerUiState
 import com.droid.googlebooktoolbox.featurechecker.model.ThemeMode
 import com.droid.googlebooktoolbox.featurechecker.ui.FeatureCheckerScreen
 import com.droid.googlebooktoolbox.featurechecker.ui.theme.LocalStudioColors
+import com.droid.googlebooktoolbox.lidguard.LidGuardScreen
+import com.droid.googlebooktoolbox.lidguard.LidGuardUiState
 import com.droid.googlebooktoolbox.model.ToolboxDestination
 import com.droid.googlebooktoolbox.model.ToolboxUiState
 import kotlin.math.roundToInt
@@ -104,6 +107,17 @@ fun GooglebookToolboxApp(
   onDismissPendingRestore: () -> Unit,
   onExportDiagnostics: () -> Unit,
   onAutoRestoreChange: (Boolean) -> Unit,
+  lidGuardState: LidGuardUiState = LidGuardUiState(),
+  onLidGuardEnabledChange: (Boolean) -> Unit = {},
+  onLidGuardCooldownChange: (Int) -> Unit = {},
+  onLidGuardLowBatteryCutoffChange: (Int) -> Unit = {},
+  onLidGuardMaxHoldMinutesChange: (Int) -> Unit = {},
+  onLidGuardPickSharedFolder: () -> Unit = {},
+  onLidGuardRequestBatteryUnrestricted: () -> Unit = {},
+  onLidGuardOpenNotificationListenerSettings: () -> Unit = {},
+  onLidGuardOpenAppBatterySettings: (String) -> Unit = {},
+  onLidGuardTriggerManualHold: () -> Unit = {},
+  onLidGuardClearManualHold: () -> Unit = {},
   modifier: Modifier = Modifier
 ) {
   val studio = LocalStudioColors.current
@@ -111,12 +125,15 @@ fun GooglebookToolboxApp(
 
   val featureCheckerHoverSource = remember { MutableInteractionSource() }
   val appRestorerHoverSource = remember { MutableInteractionSource() }
+  val lidGuardHoverSource = remember { MutableInteractionSource() }
   val isFeatureCheckerHovered by featureCheckerHoverSource.collectIsHoveredAsState()
   val isAppRestorerHovered by appRestorerHoverSource.collectIsHoveredAsState()
+  val isLidGuardHovered by lidGuardHoverSource.collectIsHoveredAsState()
 
   val hoveredDestination = when {
     isFeatureCheckerHovered -> ToolboxDestination.COMPANION_CONNECTIVITY
     isAppRestorerHovered -> ToolboxDestination.DESKTOP_RESTORER
+    isLidGuardHovered -> ToolboxDestination.LID_CLOSE_GUARD
     else -> null
   }
 
@@ -162,6 +179,7 @@ fun GooglebookToolboxApp(
               selectedDestination = toolboxState.selectedDestination,
               featureCheckerHoverSource = featureCheckerHoverSource,
               appRestorerHoverSource = appRestorerHoverSource,
+              lidGuardHoverSource = lidGuardHoverSource,
               onItemPositioned = { dest, rect -> itemBoundsInRoot[dest] = rect },
               onSelectDestination = onSelectDestination,
               onOpenWelcomePopup = onOpenWelcomePopup,
@@ -209,7 +227,18 @@ fun GooglebookToolboxApp(
                 onOpenRestorePrompt = onOpenRestorePrompt,
                 onDismissPendingRestore = onDismissPendingRestore,
                 onExportDiagnostics = onExportDiagnostics,
-                onAutoRestoreChange = onAutoRestoreChange
+                onAutoRestoreChange = onAutoRestoreChange,
+                lidGuardState = lidGuardState,
+                onLidGuardEnabledChange = onLidGuardEnabledChange,
+                onLidGuardCooldownChange = onLidGuardCooldownChange,
+                onLidGuardLowBatteryCutoffChange = onLidGuardLowBatteryCutoffChange,
+                onLidGuardMaxHoldMinutesChange = onLidGuardMaxHoldMinutesChange,
+                onLidGuardPickSharedFolder = onLidGuardPickSharedFolder,
+                onLidGuardRequestBatteryUnrestricted = onLidGuardRequestBatteryUnrestricted,
+                onLidGuardOpenNotificationListenerSettings = onLidGuardOpenNotificationListenerSettings,
+                onLidGuardOpenAppBatterySettings = onLidGuardOpenAppBatterySettings,
+                onLidGuardTriggerManualHold = onLidGuardTriggerManualHold,
+                onLidGuardClearManualHold = onLidGuardClearManualHold
               )
             }
           }
@@ -220,6 +249,7 @@ fun GooglebookToolboxApp(
               selectedDestination = toolboxState.selectedDestination,
               featureCheckerHoverSource = featureCheckerHoverSource,
               appRestorerHoverSource = appRestorerHoverSource,
+              lidGuardHoverSource = lidGuardHoverSource,
               onItemPositioned = { dest, rect -> itemBoundsInRoot[dest] = rect },
               onSelectDestination = onSelectDestination,
               onOpenWelcomePopup = onOpenWelcomePopup,
@@ -259,7 +289,18 @@ fun GooglebookToolboxApp(
                 onOpenRestorePrompt = onOpenRestorePrompt,
                 onDismissPendingRestore = onDismissPendingRestore,
                 onExportDiagnostics = onExportDiagnostics,
-                onAutoRestoreChange = onAutoRestoreChange
+                onAutoRestoreChange = onAutoRestoreChange,
+                lidGuardState = lidGuardState,
+                onLidGuardEnabledChange = onLidGuardEnabledChange,
+                onLidGuardCooldownChange = onLidGuardCooldownChange,
+                onLidGuardLowBatteryCutoffChange = onLidGuardLowBatteryCutoffChange,
+                onLidGuardMaxHoldMinutesChange = onLidGuardMaxHoldMinutesChange,
+                onLidGuardPickSharedFolder = onLidGuardPickSharedFolder,
+                onLidGuardRequestBatteryUnrestricted = onLidGuardRequestBatteryUnrestricted,
+                onLidGuardOpenNotificationListenerSettings = onLidGuardOpenNotificationListenerSettings,
+                onLidGuardOpenAppBatterySettings = onLidGuardOpenAppBatterySettings,
+                onLidGuardTriggerManualHold = onLidGuardTriggerManualHold,
+                onLidGuardClearManualHold = onLidGuardClearManualHold
               )
             }
           }
@@ -283,6 +324,7 @@ fun GooglebookToolboxApp(
           val popupTag = when (dest) {
             ToolboxDestination.COMPANION_CONNECTIVITY -> "hover_popup_feature_checker"
             ToolboxDestination.DESKTOP_RESTORER -> "hover_popup_app_restorer"
+            ToolboxDestination.LID_CLOSE_GUARD -> "hover_popup_lid_guard"
           }
 
           ToolboxHoverPopup(
@@ -302,6 +344,7 @@ private fun ToolboxLeftPane(
   selectedDestination: ToolboxDestination,
   featureCheckerHoverSource: MutableInteractionSource,
   appRestorerHoverSource: MutableInteractionSource,
+  lidGuardHoverSource: MutableInteractionSource,
   onItemPositioned: (ToolboxDestination, Rect) -> Unit,
   onSelectDestination: (ToolboxDestination) -> Unit,
   onOpenWelcomePopup: () -> Unit,
@@ -369,6 +412,17 @@ private fun ToolboxLeftPane(
         onPositioned = { rect -> onItemPositioned(ToolboxDestination.DESKTOP_RESTORER, rect) },
         onClick = { onSelectDestination(ToolboxDestination.DESKTOP_RESTORER) },
         modifier = Modifier.testTag("nav_item_app_restorer")
+      )
+
+      ToolboxNavigationOptionCard(
+        title = ToolboxDestination.LID_CLOSE_GUARD.navTitle,
+        icon = Icons.Default.LaptopChromebook,
+        selected = selectedDestination == ToolboxDestination.LID_CLOSE_GUARD,
+        compact = compact,
+        hoverInteractionSource = lidGuardHoverSource,
+        onPositioned = { rect -> onItemPositioned(ToolboxDestination.LID_CLOSE_GUARD, rect) },
+        onClick = { onSelectDestination(ToolboxDestination.LID_CLOSE_GUARD) },
+        modifier = Modifier.testTag("nav_item_lid_guard")
       )
     }
   }
@@ -488,7 +542,18 @@ private fun ToolboxRightPaneContent(
   onOpenRestorePrompt: () -> Unit,
   onDismissPendingRestore: () -> Unit,
   onExportDiagnostics: () -> Unit,
-  onAutoRestoreChange: (Boolean) -> Unit
+  onAutoRestoreChange: (Boolean) -> Unit,
+  lidGuardState: LidGuardUiState,
+  onLidGuardEnabledChange: (Boolean) -> Unit,
+  onLidGuardCooldownChange: (Int) -> Unit,
+  onLidGuardLowBatteryCutoffChange: (Int) -> Unit,
+  onLidGuardMaxHoldMinutesChange: (Int) -> Unit,
+  onLidGuardPickSharedFolder: () -> Unit,
+  onLidGuardRequestBatteryUnrestricted: () -> Unit,
+  onLidGuardOpenNotificationListenerSettings: () -> Unit,
+  onLidGuardOpenAppBatterySettings: (String) -> Unit,
+  onLidGuardTriggerManualHold: () -> Unit,
+  onLidGuardClearManualHold: () -> Unit
 ) {
   when (selectedDestination) {
     ToolboxDestination.COMPANION_CONNECTIVITY -> {
@@ -521,6 +586,23 @@ private fun ToolboxRightPaneContent(
         onExportDiagnostics = onExportDiagnostics,
         onAutoRestoreChange = onAutoRestoreChange,
         embeddedInToolbox = true
+      )
+    }
+
+    ToolboxDestination.LID_CLOSE_GUARD -> {
+      LidGuardScreen(
+        uiState = lidGuardState,
+        onEnabledChange = onLidGuardEnabledChange,
+        onCooldownChange = onLidGuardCooldownChange,
+        onLowBatteryCutoffChange = onLidGuardLowBatteryCutoffChange,
+        onMaxHoldMinutesChange = onLidGuardMaxHoldMinutesChange,
+        onPickSharedFolder = onLidGuardPickSharedFolder,
+        onRequestBatteryUnrestricted = onLidGuardRequestBatteryUnrestricted,
+        onOpenNotificationListenerSettings = onLidGuardOpenNotificationListenerSettings,
+        onOpenAppBatterySettings = onLidGuardOpenAppBatterySettings,
+        onTriggerManualHold = onLidGuardTriggerManualHold,
+        onClearManualHold = onLidGuardClearManualHold,
+        modifier = Modifier.padding(20.dp)
       )
     }
   }

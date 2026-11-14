@@ -396,5 +396,27 @@ class ToolboxSecurityAndFuzzTest {
     composeTestRule.onNodeWithText("Check your companion phone connection status").assertIsDisplayed()
     composeTestRule.onNodeWithTag("nav_item_app_restorer").performClick()
     composeTestRule.onNodeWithText("Googlebook App Restorer").assertIsDisplayed()
+    composeTestRule.onNodeWithTag("nav_item_lid_guard").performClick()
+    composeTestRule.onNodeWithTag("lid_guard_master_switch").assertIsDisplayed()
+  }
+
+  @Test
+  fun lidGuardServices_haveStrictPermissionsAndNonExportedFgs() {
+    val context = ApplicationProvider.getApplicationContext<android.app.Application>()
+    val pm = context.packageManager
+    val pkgInfo = pm.getPackageInfo(
+      context.packageName,
+      android.content.pm.PackageManager.GET_SERVICES
+    )
+    val services = pkgInfo.services?.associateBy { it.name }.orEmpty()
+    val fgs = services["com.droid.googlebooktoolbox.lidguard.LidGuardForegroundService"]
+    val listener = services["com.droid.googlebooktoolbox.lidguard.TaskNotificationListenerService"]
+    org.junit.Assert.assertNotNull(fgs)
+    org.junit.Assert.assertFalse(fgs!!.exported)
+    org.junit.Assert.assertNotNull(listener)
+    org.junit.Assert.assertEquals(
+      "android.permission.BIND_NOTIFICATION_LISTENER_SERVICE",
+      listener!!.permission
+    )
   }
 }

@@ -16,8 +16,8 @@ android {
     applicationId = "com.droid.googlebooktoolbox"
     minSdk = 33
     targetSdk = 36
-    versionCode = 6
-    versionName = "1.4.0"
+    versionCode = 7
+    versionName = "1.5.0"
     base.archivesName.set(appName)
   }
 

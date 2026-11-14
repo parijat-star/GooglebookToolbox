@@ -14,6 +14,11 @@ enum class ToolboxDestination(
     navTitle = "Enable desktop restorer on reboot",
     description = "Automatically captures and restores open desktop windows, Virtual Desks, multi-display layouts, and Chrome tabs after reboot.",
     toolName = "Googlebook App Restorer"
+  ),
+  LID_CLOSE_GUARD(
+    navTitle = "Allow Antigravity and Terminal tasks to continue when lid close",
+    description = "Default OFF. Holds a partial wake lock only while Antigravity or Linux Terminal has an active task so closing the lid won't abort it, then releases so the device can suspend.",
+    toolName = "Lid-Close Task Guard"
   )
 }
 
